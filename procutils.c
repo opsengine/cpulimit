@@ -145,13 +145,6 @@ int look_for_process_by_name(const char *process)
 
 }
 
-static int is_2_6_kernel() {
-	//kernel version detection
-	struct utsname uts;
-	uname(&uts);
-	return (strncmp(uts.release, "2.6", 3) == 0);
-}
-
 static int getppid_of(int pid)
 {
 	char file[20];
@@ -188,6 +181,8 @@ static void visit_tree(struct tree_node *node, int **children, int *children_cou
 	return;
 }
 
+//TODO: add a get_process_tree(), get_sub_processes(tree), update_process_tree()
+
 int get_sub_processes(int pid, int **children)
 {
 	//stuff for reading directories
@@ -209,7 +204,7 @@ int get_sub_processes(int pid, int **children)
 
 	//read in from /proc and seek for processes
 	while ((dit = readdir(dip)) != NULL) {
-		//get pid
+		//parse pid
 		int pid2 = atoi(dit->d_name);
 		if (pid2 == 0) continue;	//not a process
 		//check if the array must be enlarged
@@ -281,66 +276,6 @@ int get_sub_processes(int pid, int **children)
 	visit_tree(main_process, children, &children_count);
 	//shrink children to the real size
 	*children = realloc(*children, sizeof(int) * children_count);
-
-	//look for threads of our children (only for Linux 2.6.x)
-	if (is_2_6_kernel()) {
-		int thread_block = 8;
-		int thread_count = 0;
-		int *threads = malloc(sizeof(int)*thread_block);
-		char filename[30];
-		for (i=-1; i<children_count; i++) {
-			int proc_pid = (i==-1 ? pid : (*children)[i]);
-			sprintf(filename, "/proc/%d/task", proc_pid);
-			//open a directory stream to /proc directory
-			if ((dip = opendir(filename)) == NULL) {
-				perror("opendir");
-				return -20;
-			}
-			while ((dit = readdir(dip)) != NULL) {
-				//get pid
-				int task_pid = atoi(dit->d_name);
-				if (task_pid == 0) continue;		//not a process
-				if (task_pid == proc_pid) continue; //the same process
-				//a new thread was found!
-				if (thread_count>0 && (thread_count % thread_block == 0)) {
-					//reallocate
-					threads = realloc(threads, sizeof(int) * (thread_count + thread_block));
-				}
-				//add the pid of the thread
-				threads[thread_count++] = task_pid;
-			}
-			//close the dir stream and check for errors
-			if (closedir(dip) == -1) {
-				perror("closedir");
-				return -11;
-			}
-		}
-		//shrink thread array
-		threads = realloc(threads, sizeof(int) * thread_count);
-		
-	/*	printf("Process %d has %d children:\n", pid, children_count);
-		for (i=0; i<children_count; i++) {
-			printf("  %d\n", (*children)[i]);
-		}
-	
-		printf("Process and children %d have %d threads:\n", pid, thread_count);
-		for (i=0; i<thread_count; i++) {
-			printf("  %d\n", threads[i]);
-		} */
-	
-		//unify children and threads in the same array
-		*children = realloc(*children, sizeof(int) * (children_count + thread_count));
-		for (i=0; i<thread_count; i++) {
-			(*children)[children_count++] = threads[i];
-		}
-
-		free(threads);
-
-		printf("Process %d has %d subprocesses:\n", pid, children_count);
-		for (i=0; i<children_count; i++) {
-			printf("  %d\n", (*children)[i]);
-		}
-	}
 
 	//memory cleanup
 	for (i=0; i<proc_count; i++) {

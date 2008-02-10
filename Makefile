@@ -11,7 +11,7 @@ processtest: processtest.c process.o
 	gcc -o processtest processtest.c process.o -lrt $(CFLAGS)
 
 loop: loop.c
-	gcc -o loop loop.c $(CFLAGS)
+	gcc -o loop loop.c -lpthread $(CFLAGS)
 
 process.o: process.c process.h
 	gcc -c process.c $(CFLAGS)
