@@ -164,13 +164,91 @@ static int getppid_of(int pid)
 	return ppid;
 }
 
-struct tree_node {
-	int pid;
-	int children_count;		
-	struct tree_node **children;
-};
+// searches a process in the tree by its pid
+// returns the address of the node, or NULL if it's not found
+static struct process_tree_node *locate_process(struct process_tree *ptree, int pid)
+{
+	struct process_tree_node *ret = NULL;
+	int i;
+	for (i=0; i<ptree->proc_size; i++)
+		if (ptree->proc[i].pid>0 && ptree->proc[i].pid == pid)
+			ret = &(ptree->proc[i]);
+	return ret;
+}
+
+// builds the complete current process tree
+// it should be called just once, then it's enough to call the faster update_process_tree()
+// to keep the tree up to date
+// if spid is set to a valid process pid, subprocesses monitoring will be activated
+// returns 0 if successful
+int build_process_tree(struct process_tree *ptree)
+{
+	return 0;
+}
+
+// updates the process tree
+// you should call build_process_tree() once before using this function
+// if spid is set to a valid process pid, even new_subsubprocesses is cleared and updated
+// returns 0 if successful
+int update_process_tree(struct process_tree *ptree)
+{
+	return 0;
+}
+
+// finds the subprocesses of a given process (children, children of children, etc..)
+// the algorithm first finds the process and then, its subprocesses recursively
+// you should call build_process_tree() once before using this function
+// if pid is spid, consider using get_new_subprocesses() which is much faster and scalable O(1)
+// returns the number of subprocesses found, or -1 if the pid it's not found in the tree
+int get_subprocesses(struct process_tree *ptree, int pid, int **subprocesses, int *subprocesses_size)
+{
+	return 0;
+}
+
+// returns special process subprocesses detected by last build_process_tree() or update_process_tree() call
+// you should call build_process_tree() once before using this function
+int get_new_subprocesses(struct process_tree *ptree, int **subprocesses, int *subprocesses_size)
+{
+	*subprocesses_size = ptree->subprocesses_size;
 	
-static void visit_tree(struct tree_node *node, int **children, int *children_count)
+	return 0;
+}
+
+// free the heap memory used by a process tree
+void cleanup_process_tree(struct process_tree *ptree)
+{
+	int i;
+	for (i=0; i<ptree->proc_size; i++) {
+		//if it's a valid process then free the children
+		if (ptree->proc[i].pid > 0 && ptree->proc[i].children_count > 0) {
+			free(ptree->proc[i].children);
+			ptree->proc[i].children = NULL;
+		}
+	}
+	//free subprocesses of the special process
+	if (ptree->new_subprocesses_size > 0) {
+		free(ptree->new_subprocesses);
+		ptree->new_subprocesses = NULL;
+	}
+	//free the nodes dynamic array
+	free(ptree->proc);
+	ptree->proc = NULL;
+}
+
+// searches the sub processes of a given process
+// returns the number of subprocesses found
+int get_sub_processes2(struct process_tree *ptree, int pid, int **sub)
+{
+	struct process_tree_node *p = locate_process(ptree, pid);
+	int sub_block = 10;
+	int sub_count = sub_block;
+	*sub = malloc(sizeof(int) * sub_block);
+}
+
+
+//TODO: add a get_process_tree(), get_sub_processes(tree), update_process_tree()
+
+static void visit_tree(struct process_tree_node *node, int **children, int *children_count)
 {
 	int i;
 	for (i=0; i<node->children_count; i++) {
@@ -181,9 +259,7 @@ static void visit_tree(struct tree_node *node, int **children, int *children_cou
 	return;
 }
 
-//TODO: add a get_process_tree(), get_sub_processes(tree), update_process_tree()
-
-int get_sub_processes(int pid, int **children)
+int get_sub_processes_old(int pid, int **children)
 {
 	//stuff for reading directories
 	DIR *dip;
@@ -226,7 +302,7 @@ int get_sub_processes(int pid, int **children)
 	*children = malloc(sizeof(int) * proc_count);
 
 	//process tree
-	struct tree_node nodes[proc_count], *init_process=NULL, *main_process=NULL;
+	struct process_tree_node nodes[proc_count], *init_process=NULL, *main_process=NULL;
 
 	printf("%d processes detected\n", proc_count);
 
@@ -280,8 +356,10 @@ int get_sub_processes(int pid, int **children)
 	//memory cleanup
 	for (i=0; i<proc_count; i++) {
 		free(nodes[i].children);
+		nodes[i].children = NULL;
 	}
 	free(proc);
+	proc = NULL;
 
 	return children_count;
 }
