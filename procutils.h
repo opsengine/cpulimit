@@ -39,30 +39,24 @@ struct process_tree_node {
 	int pid;
 	//the time when the process started since system boot (measured in jiffies)
 	int starttime;
-	//the number of direct children of the process
-	int children_count;
-	//the children nodes
-	struct process_tree_node **children;
+	//the children nodes (list of struct process_tree_node)
+	struct list *children;
 };
 
 // the process tree	
 struct process_tree {
-	//root node of the tree, i.e. the init process
-	struct process_tree_node *root;
-	//dynamic array containing all the nodes
-	struct process_tree_node *proc;
-	//size of array proc
-	int proc_size;
-	//the number of valid processes in the array, i.e. the number of processes in the tree
-	int process_count;
+	//init, the father of each userspace process
+	struct process_tree_node *user_root;
+	//kthreadd, the father of each kernel thread
+	struct process_tree_node *kernel_root;
+	//dynamic list containing all the nodes (list of struct process_tree_node)
+	struct list processes;
 	//this is a special monitored process
 	//if spid>0 when calling build_process_tree() or update_process_tree()
 	//new detected subprocesses of this process will be added in new_subprocesses array
 	int spid;
-	//new subprocesses of the special process
-	struct process_tree_node *new_subprocesses;
-	//size of monitor_new_subprocesses array
-	int new_subprocesses_size;
+	//new subprocesses of the special process (list of struct process_tree_node)
+	struct list new_subprocesses;
 };
 
 // builds the complete current process tree
@@ -81,13 +75,13 @@ int update_process_tree(struct process_tree *ptree);
 // finds the subprocesses of a given process (children, children of children, etc..)
 // the algorithm first finds the process and then, its subprocesses recursively
 // you should call build_process_tree() once before using this function
-// if pid is spid, consider using get_new_subprocesses() which is much faster and scalable O(1)
+// if pid is spid, consider using get_new_subprocesses() which is much faster, scalable and O(1)
 // returns the number of subprocesses found, or -1 if the pid it's not found in the tree
-int get_subprocesses(struct process_tree *ptree, int pid, int **subprocesses, int *subprocesses_size);
+int get_subprocesses(struct process_tree *ptree, int pid, struct list *subprocesses);
 
 // returns special process subprocesses detected by last build_process_tree() or update_process_tree() call
 // you should call build_process_tree() once before using this function
-int get_new_subprocesses(struct process_tree *ptree, int **subprocesses, int *subprocesses_size);
+int get_new_subprocesses(struct process_tree *ptree, struct list *subprocesses);
 
 // free the heap memory used by a process tree
 void cleanup_process_tree(struct process_tree *ptree);
@@ -101,4 +95,3 @@ int look_for_process_by_name(const char *process);
 int look_for_process_by_pid(int pid);
 
 #endif
-
