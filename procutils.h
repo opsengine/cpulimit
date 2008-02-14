@@ -31,60 +31,52 @@
 #include <dirent.h>
 #include <string.h>
 #include "list.h"
+#include "process.h"
 
-// a node contained in the process_tree
-struct process_tree_node {
-	//the pid of the process
-	//if pid<=0 it means that the object doesn't contain any value
+#define PIDHASH_SZ 1024
+#define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
+
+// a hierarchy of processes
+struct process_family {
+	//the (god)father of the process family
+	int father;
+	//members list (father process is the first element)
+	struct list members;
+	//non-members list
+	//hashtable with all the processes (array of struct list of struct process)
+	struct list *hashtable[PIDHASH_SZ];
+	//total process count
+	int count;
+};
+
+// process descriptor
+struct process {
 	int pid;
-	//the time when the process started since system boot (measured in jiffies)
 	int starttime;
-	//the children nodes (list of struct process_tree_node)
-	struct list *children;
+	int member;
+	struct process_history *history;
 };
 
-// the process tree	
-struct process_tree {
-	//init, the father of each userspace process
-	struct process_tree_node *user_root;
-	//kthreadd, the father of each kernel thread
-	struct process_tree_node *kernel_root;
-	//dynamic list containing all the nodes (list of struct process_tree_node)
-	struct list processes;
-	//this is a special monitored process
-	//if spid>0 when calling build_process_tree() or update_process_tree()
-	//new detected subprocesses of this process will be added in new_subprocesses array
-	int spid;
-	//new subprocesses of the special process (list of struct process_tree_node)
-	struct list new_subprocesses;
+// object to enumerate running processes
+struct process_iterator {
+	DIR *dip;
+	struct dirent *dit;	
 };
 
-// builds the complete current process tree
-// it should be called just once, then it's enough to call the faster update_process_tree()
-// to keep the tree up to date
-// if spid is set to a valid process pid, subprocesses monitoring will be activated
-// returns 0 if successful
-int build_process_tree(struct process_tree *ptree);
+// searches for all the processes derived from father and stores them
+// in the process family struct
+int create_process_family(struct process_family *f, int father);
 
-// updates the process tree
-// you should call build_process_tree() once before using this function
-// if spid is set to a valid process pid, even new_subsubprocesses is cleared and updated
-// returns 0 if successful
-int update_process_tree(struct process_tree *ptree);
+// checks if there are new processes born in the specified family
+// if any they are added to the members list
+// the number of new born processes is returned
+int check_new_members(struct process_family *f);
 
-// finds the subprocesses of a given process (children, children of children, etc..)
-// the algorithm first finds the process and then, its subprocesses recursively
-// you should call build_process_tree() once before using this function
-// if pid is spid, consider using get_new_subprocesses() which is much faster, scalable and O(1)
-// returns the number of subprocesses found, or -1 if the pid it's not found in the tree
-int get_subprocesses(struct process_tree *ptree, int pid, struct list *subprocesses);
+// removes a process from the family by its pid
+void remove_process_from_family(struct process_family *f, int pid);
 
-// returns special process subprocesses detected by last build_process_tree() or update_process_tree() call
-// you should call build_process_tree() once before using this function
-int get_new_subprocesses(struct process_tree *ptree, struct list *subprocesses);
-
-// free the heap memory used by a process tree
-void cleanup_process_tree(struct process_tree *ptree);
+// free the heap memory used by a process family
+void cleanup_process_family(struct process_family *f);
 
 // searches a process given the name of the executable file, or its absolute path
 // returns the pid, or 0 if it's not found
