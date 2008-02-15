@@ -21,7 +21,7 @@
 
 #include "process.h"
 
-int process_init(struct process *proc, int pid)
+int process_init(struct process_history *proc, int pid)
 {
 	proc->pid = pid;
 	//init circular queue
@@ -34,25 +34,18 @@ int process_init(struct process *proc, int pid)
 	sprintf(proc->stat_file, "/proc/%d/stat", proc->pid);
 	FILE *fd = fopen(proc->stat_file, "r");
 	fclose(fd);
+	proc->usage.pcpu = 0;
+	proc->usage.workingrate = 0;
 	return (fd == NULL);
 }
 
-//return ta-tb in microseconds (no overflow checks, you've been warned!)
-static inline unsigned long timediff(const struct timespec *ta,const struct timespec *tb)
+//return t1-t2 in microseconds (no overflow checks, so better watch out!)
+static inline unsigned long timediff(const struct timespec *t1,const struct timespec *t2)
 {
-	unsigned long us = (ta->tv_sec-tb->tv_sec)*1000000 + (ta->tv_nsec/1000 - tb->tv_nsec/1000);
-	return us;
+	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_nsec/1000 - t2->tv_nsec/1000);
 }
 
-static inline unsigned long long tv_diff(struct timeval *tv1, struct timeval *tv2)
-{
-	unsigned long long ret;
-	ret = ((unsigned long long)(tv2->tv_sec - tv1->tv_sec)) * 1000000ULL;
-	ret += tv2->tv_usec - tv1->tv_usec;
-	return ret;
-}
-
-static int get_jiffies(struct process *proc) {
+static int get_jiffies(struct process_history *proc) {
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
 	fgets(proc->buffer, sizeof(proc->buffer),f);
@@ -70,7 +63,7 @@ static int get_jiffies(struct process *proc) {
 	return utime+ktime;
 }
 
-int process_monitor(struct process *proc, int last_working_quantum, struct cpu_usage *usage)
+int process_monitor(struct process_history *proc, int last_working_quantum, struct cpu_usage *usage)
 {
 	//increment front index
 	proc->front_index = (proc->front_index+1) % HISTORY_SIZE;
@@ -90,13 +83,13 @@ int process_monitor(struct process *proc, int last_working_quantum, struct cpu_u
 	front->cputime = last_working_quantum;
 
 	if (proc->actual_history_size==1) {
-		//not enough samples taken (it's the first one!), return 0
+		//not enough elements taken (it's the first one!), return 0
 		usage->pcpu = -1;
 		usage->workingrate = 1;
 		return 0;
 	}
 	else {
-		//queue has samples enough
+		//queue has enough elements
 		//now we can calculate cpu usage, interval dt and dtwork are expressed in microseconds
 		long dt = timediff(&(front->when), &(tail->when));
 		//the total time between tail and front in which the process was allowed to run
@@ -112,7 +105,7 @@ int process_monitor(struct process *proc, int last_working_quantum, struct cpu_u
 	}
 }
 
-int process_close(struct process *proc)
+int process_close(struct process_history *proc)
 {
 	if (kill(proc->pid,SIGCONT)!=0) {
 		fprintf(stderr,"Process %d is already dead!\n", proc->pid);
@@ -120,4 +113,3 @@ int process_close(struct process *proc)
 	proc->pid = 0;
 	return 0;
 }
-

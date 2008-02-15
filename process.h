@@ -54,14 +54,14 @@ struct process_screenshot {
 };
 
 //process descriptor
-struct process {
+struct process_history {
 	//the PID of the process
 	int pid;
 	//name of /proc/PID/stat file
 	char stat_file[20];
 	//read buffer for /proc filesystem
 	char buffer[1024];
-	//recent history of the process (circular queue)
+	//recent history of the process (fixed circular queue)
 	struct process_screenshot history[HISTORY_SIZE];
 	//the index of the last screenshot made to the process
 	int front_index;
@@ -71,12 +71,14 @@ struct process {
 	int actual_history_size;
 	//total cputime saved in the history
 	long total_workingtime;
+	//current usage
+	struct cpu_usage usage;
 };
 
-int process_init(struct process *proc, int pid);
+int process_init(struct process_history *proc, int pid);
 
-int process_monitor(struct process *proc, int last_working_quantum, struct cpu_usage *usage);
+int process_monitor(struct process_history *proc, int last_working_quantum, struct cpu_usage *usage);
 
-int process_close(struct process *proc);
+int process_close(struct process_history *proc);
 
 #endif

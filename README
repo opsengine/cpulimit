@@ -1,0 +1,35 @@
+Cpulimit 1.2
+
+===========
+Changelog:
+===========
+- reorganization of the code, splitted in more source files
+- control function process_monitor() optimized by eliminating an unnecessary loop
+- experimental support for multiple control of children processes and threads
+  children detection algorithm seems heavy because of the amount of code,
+  but it's designed to be scalable when there are a lot of children processes
+- cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
+- in order to avoid deadlock, cpulimit prevents to limit itself
+- option --path eliminated, use --exe instead both for absolute path and file name
+- deleted every setpriority(), (todo: set it just once)
+- minor enhancements and bugfixes
+
+
+==============
+Installation:
+==============
+
+Run 'make' and place the executable file 'cpulimit' wherever you want.
+Type 'cpulimit --help' to get documentation on available options.
+
+
+=======
+About:
+=======
+
+cpulimit is a program that attempts to limit the cpu usage of a process (expressed in percentage, not in cpu time). This is useful to control batch jobs, when you don't want they eat too much cpu. It does not act on the nice value or other scheduling priority stuff, but on the real cpu usage. Also, it is able to adapt itself to the overall system load, dynamically and quickly.
+The control of the used cpu amount is done sending continue and stop POSIX signals to processes.
+All the children processes and threads of the specified process will share the same percent of cpu.
+
+Developed by Angelo Marletta.
+Please send your feedback, bug reports, feature requests to marlonx80 at hotmail dot com.

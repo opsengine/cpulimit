@@ -1,26 +1,24 @@
-CFLAGS=-Wall -O2 -D_GNU_SOURCE
-TARGETS=cpulimit processtest procutils.o list.o loop
+CC=gcc
+CFLAGS=-Wall -D_GNU_SOURCE -O2
+TARGETS=cpulimit ptest
 LIBS=process.o procutils.o list.o
 
 all::	$(TARGETS)
 
 cpulimit:	cpulimit.c $(LIBS)
-	gcc -o cpulimit cpulimit.c $(LIBS) -lrt $(CFLAGS)
+	$(CC) -o cpulimit cpulimit.c $(LIBS) -lrt $(CFLAGS)
 
-processtest: processtest.c process.o
-	gcc -o processtest processtest.c process.o -lrt $(CFLAGS)
-
-loop: loop.c
-	gcc -o loop loop.c -lpthread $(CFLAGS)
+ptest: ptest.c process.o procutils.o list.o
+	$(CC) -o ptest ptest.c process.o procutils.o list.o -lrt $(CFLAGS)
 
 process.o: process.c process.h
-	gcc -c process.c $(CFLAGS)
+	$(CC) -c process.c $(CFLAGS)
 
-procutils.o: procutils.c procutils.h list.o
-	gcc -c procutils.c $(CFLAGS)
+procutils.o: procutils.c procutils.h
+	$(CC) -c procutils.c $(CFLAGS)
 
 list.o: list.c list.h
-	gcc -c list.c $(CFLAGS)
+	$(CC) -c list.c $(CFLAGS)
 
 clean:
 	rm -f *~ *.o $(TARGETS)
