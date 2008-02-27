@@ -59,7 +59,7 @@ static int get_starttime(int pid)
 	int sp = 20;
 	while (sp--)
 		p = memchr(p+1,' ',sizeof(buffer) - (p-buffer));
-	//pid of the parent process
+	//start time of the process
 	int time = atoi(p+1);
 	return time;
 }

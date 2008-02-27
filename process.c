@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+//TODO: add documentation to public functions
+
 #include "process.h"
 
 int process_init(struct process_history *proc, int pid)

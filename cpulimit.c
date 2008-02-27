@@ -36,7 +36,7 @@
  * - cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
  * - in order to avoid deadlock, cpulimit prevents to limit itself
  * - option --path eliminated, use --exe instead both for absolute path and file name
- * - deleted every setpriority(), (todo: set it just once)
+ * - deleted almost every setpriority(), just set it once at startup
  * - minor enhancements and bugfixes
  *
  */
@@ -68,6 +68,8 @@
 //control time slot in microseconds
 //each slot is splitted in a working slice and a sleeping slice
 #define CONTROL_SLOT 100000
+
+#define MAX_PRIORITY -10
 
 //the "family"
 struct process_family pf;
@@ -164,7 +166,7 @@ void limit_process(int pid, float limit)
 	create_process_family(&pf, pid);
 	struct list_node *node;
 	
-	printf("Members in the family owned by %d: %d\n", pf.father, pf.members.count);
+	if (verbose) printf("Members in the family owned by %d: %d\n", pf.father, pf.members.count);
 
 	while(1) {
 
@@ -206,7 +208,9 @@ void limit_process(int pid, float limit)
 		}
 		//average value
 		workingrate /= pf.members.count;
-		
+
+		//TODO: make workingtime customized for each process, now it's equal for all
+
 		//adjust work and sleep time slices
 		if (pcpu>0) {
 			twork.tv_nsec = MIN(CONTROL_SLOT*limit*1000/pcpu*workingrate,CONTROL_SLOT*1000);
@@ -351,8 +355,19 @@ int main(int argc, char **argv) {
 	signal(SIGINT, quit);
 	signal(SIGTERM, quit);
 
-	//TODO: try to renice
-
+	//try to renice with the best value
+	int old_priority = getpriority(PRIO_PROCESS, 0);
+	int priority = old_priority;
+	while (setpriority(PRIO_PROCESS, 0, priority-1) == 0 && priority>MAX_PRIORITY) {
+		priority--;	
+	}
+	if (priority != old_priority) {
+		printf("Priority changed to %d\n", priority);
+	}
+	else {
+		printf("Cannot change priority\n");
+	}
+	
 	while(1) {
 		//look for the target process..or wait for it
 		int ret = 0;

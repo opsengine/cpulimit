@@ -5,6 +5,8 @@
 #include <sys/wait.h>
 #include "procutils.h"
 
+//simple program to test cpulimit
+
 int main()
 {
 	printf("PID %d\n", getpid());
