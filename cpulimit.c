@@ -133,7 +133,7 @@ void print_usage(FILE *stream, int exit_code)
 {
 	fprintf(stream, "Usage: %s TARGET [OPTIONS...]\n",program_name);
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
-	fprintf(stream, "      -p, --pid=N        pid of the process\n");
+	fprintf(stream, "      -p, --pid=N        pid of the process (implies -z)\n");
 	fprintf(stream, "      -e, --exe=FILE     name of the executable program file or absolute path name\n");
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N      percentage of cpu allowed from 0 to 100 (required)\n");
@@ -299,6 +299,7 @@ int main(int argc, char **argv) {
 		switch(next_option) {
 			case 'p':
 				pid = atoi(optarg);
+				//todo: verify pid is valid
 				pid_ok = 1;
 				process_ok = 1;
 				break;
@@ -329,6 +330,10 @@ int main(int argc, char **argv) {
 		}
 	} while(next_option != -1);
 
+	if (pid!=0) {
+		lazy = 1;
+	}
+	
 	if (!process_ok) {
 		fprintf(stderr,"Error: You must specify a target process, by name or by PID\n");
 		print_usage(stderr, 1);
