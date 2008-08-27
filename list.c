@@ -68,6 +68,7 @@ void delete_node(struct list *l,struct list_node *node) {
 	}
 	l->count--;
 	free(node);
+	node = NULL;
 }
 
 void destroy_node(struct list *l,struct list_node *node) {

@@ -203,8 +203,9 @@ void limit_process(int pid, float limit)
 			struct process *proc = (struct process*)(node->data);
 			if (process_monitor(proc->history, workingtime, &(proc->history->usage))==-1) {
 				//process is dead, remove it from family
-				remove_process_from_family(&pf, proc->pid);
 				fprintf(stderr,"Process %d dead!\n", proc->pid);
+				remove_process_from_family(&pf, proc->pid);
+				continue;
 			}
 			pcpu += proc->history->usage.pcpu;
 			workingrate += proc->history->usage.workingrate;
@@ -249,18 +250,20 @@ void limit_process(int pid, float limit)
 		clock_gettime(CLOCK_REALTIME,&endwork);
 		workingtime = timediff(&endwork,&startwork);
 
-		//stop processes, they have worked enough
-		//resume processes
-		for (node=pf.members.first; node!=NULL; node=node->next) {
-			struct process *proc = (struct process*)(node->data);
-			if (kill(proc->pid,SIGSTOP)!=0) {
-				//process is dead, remove it from family
-				fprintf(stderr,"Process %d dead!\n", proc->pid);
-				remove_process_from_family(&pf, proc->pid);
+		if (tsleep.tv_nsec>0) {
+			//stop only if the process is active
+			//stop processes, they have worked enough
+			for (node=pf.members.first; node!=NULL; node=node->next) {
+				struct process *proc = (struct process*)(node->data);
+				if (kill(proc->pid,SIGSTOP)!=0) {
+					//process is dead, remove it from family
+					fprintf(stderr,"Process %d dead!\n", proc->pid);
+					remove_process_from_family(&pf, proc->pid);
+				}
 			}
+			//now the processes are sleeping
+			nanosleep(&tsleep,NULL);
 		}
-		//now the process is forced to sleep
-		nanosleep(&tsleep,NULL);
 		i++;
 	}
 	cleanup_process_family(&pf);
@@ -337,7 +340,7 @@ int main(int argc, char **argv) {
 		lazy = 1;
 	}
 	
-	if (pid<=1 || pid>=65536) {
+	if (pid_ok && (pid<=1 || pid>=65536)) {
 		fprintf(stderr,"Error: Invalid value for argument PID\n");
 		print_usage(stderr, 1);
 		exit(1);

@@ -115,6 +115,8 @@ static int hash_process(struct process_family *f, struct process *p)
 			//TODO: should free() something? tmp? p?
 			//update process info
 			memcpy(tmp, p, sizeof(struct process));
+			free(p);
+			p = NULL;
 			ret = 1;
 		}
 		else {
@@ -254,7 +256,7 @@ int update_process_family(struct process_family *f)
 		}
 		if (ancestor == NULL) {
 			//this should never happen! if does, find and correct the bug
-			printf("Fatal bug! Process %d is without parent\n", pid);
+			fprintf(stderr, "Fatal bug! Process %d is without parent\n", pid);
 			exit(1);
 		}
 		//allocate and insert the process
@@ -288,7 +290,7 @@ void remove_process_from_family(struct process_family *f, int pid)
 		struct process *p = (struct process*)(node->data);
 		free(p->history);
 		p->history = NULL;
-		destroy_node(&(f->members), node);
+		delete_node(&(f->members), node);
 	}
 	unhash_process(f, pid);
 }
