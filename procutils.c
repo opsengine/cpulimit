@@ -112,6 +112,7 @@ static int hash_process(struct process_family *f, struct process *p)
 		//list already exists
 		struct process *tmp = (struct process*)locate_elem(*l, p);
 		if (tmp != NULL) {
+			//TODO: should free() something? tmp? p?
 			//update process info
 			memcpy(tmp, p, sizeof(struct process));
 			ret = 1;
@@ -137,7 +138,7 @@ static void unhash_process(struct process_family *f, int pid) {
 	f->count--;
 }
 
-static struct process *find_process(struct process_family *f, int pid)
+static struct process *seek_process(struct process_family *f, int pid)
 {
 	struct list **l = &(f->hashtable[pid_hashfn(pid)]);
 	return (*l != NULL) ? (struct process*)locate_elem(*l, &pid) : NULL;
@@ -145,12 +146,12 @@ static struct process *find_process(struct process_family *f, int pid)
 
 /*
 static int is_member(struct process_family *f, int pid) {
-	struct process *p = find_process(f, pid);
+	struct process *p = seek_process(f, pid);
 	return (p!=NULL && p->member);
 }
 
 static int exists(struct process_family *f, int pid) {
-	struct process *p = find_process(f, pid);
+	struct process *p = seek_process(f, pid);
 	return p!=NULL;
 }
 */
@@ -192,7 +193,7 @@ static int read_next_process(struct process_iterator *i) {
 // in the process family struct
 int create_process_family(struct process_family *f, int father)
 {
-	//process list initialization
+	//process list initialization (4 bytes key)
 	init_list(&(f->members), 4);
 	//hashtable initialization
 	memset(&(f->hashtable), 0, sizeof(f->hashtable));
@@ -205,7 +206,7 @@ int create_process_family(struct process_family *f, int father)
 	while ((pid = read_next_process(&iter))) {
 		//check if process belongs to the family
 		int ppid = pid;
-		//TODO: optimize (add also parents)
+		//TODO: optimize adding also these parents, and continue if process is already present
 		while(ppid!=1 && ppid!=father) {
 			ppid = getppid_of(ppid);
 		}
@@ -214,10 +215,11 @@ int create_process_family(struct process_family *f, int father)
 		p->pid = pid;
 		p->starttime = get_starttime(pid);
 		if (ppid==1) {
+			//the init process
 			p->member = 0;
 		}
 		else if (pid != getpid()) {
-			//add to members (only if it's not the current cpulimit process!)
+			//add to members (but exclude the current cpulimit process!)
 			p->member = 1;
 			add_elem(&(f->members), p);
 		}
@@ -233,7 +235,7 @@ int create_process_family(struct process_family *f, int father)
 // checks if there are new processes born in the specified family
 // if any they are added to the members list
 // the number of new born processes is returned
-int check_new_members(struct process_family *f)
+int update_process_family(struct process_family *f)
 {
 	int ret = 0;
 	//process iterator
@@ -241,13 +243,13 @@ int check_new_members(struct process_family *f)
 	init_process_iterator(&iter);
 	int pid = 0;
 	while ((pid = read_next_process(&iter))) {
-		struct process *newp = find_process(f, pid);
-		if (newp != NULL) continue; //already known
+		struct process *newp = seek_process(f, pid);
+		if (newp != NULL) continue; //already known //TODO: what if newp is a new process with the same PID??
 		//the process is new, check if it belongs to the family
 		int ppid = getppid_of(pid);
 		//search the youngest known ancestor of the process
 		struct process *ancestor = NULL;
-		while((ancestor=find_process(f, ppid))==NULL) {
+		while((ancestor=seek_process(f, ppid))==NULL) {
 			ppid = getppid_of(ppid);
 		}
 		if (ancestor == NULL) {
@@ -259,12 +261,15 @@ int check_new_members(struct process_family *f)
 		struct process *p = malloc(sizeof(struct process));
 		p->pid = pid;
 		p->starttime = get_starttime(pid);
-		p->member = 0;
 		if (ancestor->member) {
 			//add to members
 			p->member = 1;
 			add_elem(&(f->members), p);
 			ret++;
+		}
+		else {
+			//not a member
+			p->member = 0;
 		}
 		//init history
 		p->history = malloc(sizeof(struct process_history));

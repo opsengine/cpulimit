@@ -40,7 +40,8 @@
 struct process_family {
 	//the (god)father of the process family
 	int father;
-	//members list (father process is the first element)
+	//process list (father process is the first element)
+	//elements are struct process
 	struct list members;
 	//non-members list
 	//hashtable with all the processes (array of struct list of struct process)
@@ -51,8 +52,11 @@ struct process_family {
 
 // process descriptor
 struct process {
+	//pid of the process
 	int pid;
+	//start time
 	int starttime;
+	//is member of the family?
 	int member;
 	struct process_history *history;
 };
@@ -70,7 +74,7 @@ int create_process_family(struct process_family *f, int father);
 // checks if there are new processes born in the specified family
 // if any they are added to the members list
 // the number of new born processes is returned
-int check_new_members(struct process_family *f);
+int update_process_family(struct process_family *f);
 
 // removes a process from the family by its pid
 void remove_process_from_family(struct process_family *f, int pid);

@@ -65,11 +65,14 @@
 #define MIN(a,b) (a<b?a:b)
 #define MAX(a,b) (a>b?a:b)
 #define print_caption()	printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n")
+
 //control time slot in microseconds
 //each slot is splitted in a working slice and a sleeping slice
-#define CONTROL_SLOT 100000
+#define TIME_SLOT 100000
 
 #define MAX_PRIORITY -10
+
+/* GLOBAL VARIABLES */
 
 //the "family"
 struct process_family pf;
@@ -174,14 +177,14 @@ void limit_process(int pid, float limit)
 
 		if (i%10==0) {
 			//update the process family (checks only for new members)
-			int newborn = check_new_members(&pf);
-			if (newborn) {
-				printf("%d new children processes detected (", newborn);
+			int new_children = update_process_family(&pf);
+			if (new_children) {
+				printf("%d new children processes detected (", new_children);
 				int j;
 				node = pf.members.last;
-				for (j=0; j<newborn; j++) {
+				for (j=0; j<new_children; j++) {
 					printf("%d", ((struct process*)(node->data))->pid);
-					if (j<newborn-1) printf(" ");
+					if (j<new_children-1) printf(" ");
 					node = node->previous;
 				}
 				printf(")\n");
@@ -213,18 +216,18 @@ void limit_process(int pid, float limit)
 
 		//adjust work and sleep time slices
 		if (pcpu>0) {
-			twork.tv_nsec = MIN(CONTROL_SLOT*limit*1000/pcpu*workingrate,CONTROL_SLOT*1000);
+			twork.tv_nsec = MIN(TIME_SLOT*limit*1000/pcpu*workingrate,TIME_SLOT*1000);
 		}
 		else if (pcpu==0) {
-			twork.tv_nsec = CONTROL_SLOT*1000;
+			twork.tv_nsec = TIME_SLOT*1000;
 		}
 		else if (pcpu==-1) {
 			//not yet a valid idea of cpu usage
 			pcpu = limit;
 			workingrate = limit;
-			twork.tv_nsec = MIN(CONTROL_SLOT*limit*1000,CONTROL_SLOT*1000);
+			twork.tv_nsec = MIN(TIME_SLOT*limit*1000,TIME_SLOT*1000);
 		}
-		tsleep.tv_nsec = CONTROL_SLOT*1000-twork.tv_nsec;
+		tsleep.tv_nsec = TIME_SLOT*1000-twork.tv_nsec;
 
 		if (verbose && i%10==0 && i>0) {
 			printf("%0.2f%%\t%6ld us\t%6ld us\t%0.2f%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
@@ -332,6 +335,12 @@ int main(int argc, char **argv) {
 
 	if (pid!=0) {
 		lazy = 1;
+	}
+	
+	if (pid<=1 || pid>=65536) {
+		fprintf(stderr,"Error: Invalid value for argument PID\n");
+		print_usage(stderr, 1);
+		exit(1);
 	}
 	
 	if (!process_ok) {
