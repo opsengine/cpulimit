@@ -25,20 +25,17 @@
 
 int process_init(struct process_history *proc, int pid)
 {
-	proc->pid = pid;
-	//init circular queue
-	proc->front_index = -1;
-	proc->tail_index = 0;
-	proc->actual_history_size = 0;
-	memset(proc->history, 0, sizeof(proc->history));
-	proc->total_workingtime = 0;
 	//test /proc file descriptor for reading
-	sprintf(proc->stat_file, "/proc/%d/stat", proc->pid);
+	sprintf(proc->stat_file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(proc->stat_file, "r");
+	if (fd == NULL) return 1;
 	fclose(fd);
-	proc->usage.pcpu = 0;
-	proc->usage.workingrate = 0;
-	return (fd == NULL);
+	//init properties
+	proc->pid = pid;
+	proc->cpu_usage = 0;
+	memset(&(proc->last_sample), 0, sizeof(struct timespec));
+	proc->last_jiffies = -1;
+	return 0;
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
@@ -65,46 +62,43 @@ static int get_jiffies(struct process_history *proc) {
 	return utime+ktime;
 }
 
-int process_monitor(struct process_history *proc, int last_working_quantum, struct cpu_usage *usage)
+#define ALFA 0.08
+
+int process_monitor(struct process_history *proc)
 {
-	//increment front index
-	proc->front_index = (proc->front_index+1) % HISTORY_SIZE;
-
-	//actual history size is: (front-tail+HISTORY_SIZE)%HISTORY_SIZE+1
-	proc->actual_history_size = (proc->front_index - proc->tail_index + HISTORY_SIZE) % HISTORY_SIZE + 1;
-
-	//actual front and tail of the queue
-	struct process_screenshot *front = &(proc->history[proc->front_index]);
-	struct process_screenshot *tail = &(proc->history[proc->tail_index]);
-
-	//take a shot and save in front
 	int j = get_jiffies(proc);
 	if (j<0) return -1; //error retrieving jiffies count (maybe the process is dead)
-	front->jiffies = j;
-	clock_gettime(CLOCK_REALTIME, &(front->when));
-	front->cputime = last_working_quantum;
-
-	if (proc->actual_history_size==1) {
-		//not enough elements taken (it's the first one!), return 0
-		usage->pcpu = -1;
-		usage->workingrate = 1;
+	struct timespec now;
+	clock_gettime(CLOCK_REALTIME, &now);
+	if (proc->last_jiffies==-1) {
+		//store current time
+		proc->last_sample = now;
+		//store current jiffies
+		proc->last_jiffies = j;
+		//it's the first sample, cannot figure out the cpu usage
+		proc->cpu_usage = -1;
 		return 0;
+	}
+	//time from previous sample (in ns)
+	long dt = timediff(&now, &(proc->last_sample));
+	//how many jiffies in dt?
+	double max_jiffies = dt * HZ / 1000000.0;
+	double sample = (j - proc->last_jiffies) / max_jiffies;
+	if (proc->cpu_usage == -1) {
+		//initialization
+		proc->cpu_usage = sample;
 	}
 	else {
-		//queue has enough elements
-		//now we can calculate cpu usage, interval dt and dtwork are expressed in microseconds
-		long dt = timediff(&(front->when), &(tail->when));
-		//the total time between tail and front in which the process was allowed to run
-		proc->total_workingtime += front->cputime - tail->cputime;
-		int used_jiffies = front->jiffies - tail->jiffies;
-		float usage_ratio = (used_jiffies*1000000.0/HZ) / proc->total_workingtime;
-		usage->workingrate = 1.0 * proc->total_workingtime / dt;
-		usage->pcpu = usage_ratio * usage->workingrate;
-		//increment tail index if the queue is full
-		if (proc->actual_history_size==HISTORY_SIZE)
-			proc->tail_index = (proc->tail_index+1) % HISTORY_SIZE;
-		return 0;
+		//adaptative adjustment
+		proc->cpu_usage = (1-ALFA) * proc->cpu_usage + ALFA * sample;
 	}
+
+	//store current time
+	proc->last_sample = now;
+	//store current jiffies
+	proc->last_jiffies = j;
+	
+	return 0;
 }
 
 int process_close(struct process_history *proc)

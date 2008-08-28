@@ -146,7 +146,7 @@ void print_usage(FILE *stream, int exit_code)
 	exit(exit_code);
 }
 
-void limit_process(int pid, float limit)
+void limit_process(int pid, double limit)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -171,9 +171,13 @@ void limit_process(int pid, float limit)
 	
 	if (verbose) printf("Members in the family owned by %d: %d\n", pf.father, pf.members.count);
 
+	//rate at which we are keeping active the processes (range 0-1)
+	//1 means that the process are using all the twork slice
+	double workingrate = -1;
+
 	while(1) {
 
-		if (i%100==0 && verbose) print_caption();
+		if (i%200==0 && verbose) print_caption();
 
 		if (i%10==0) {
 			//update the process family (checks only for new members)
@@ -193,45 +197,46 @@ void limit_process(int pid, float limit)
 
 		//total cpu actual usage (range 0-1)
 		//1 means that the processes are using 100% cpu
-		float pcpu = 0;
-		//rate at which we are keeping active the processes (range 0-1)
-		//1 means that the process are using all the twork slice
-		float workingrate = 0;
-
+		double pcpu = -1;
+		//number of processes in the family
+		int pcount = 0;
+		
 		//estimate how much the controlled processes are using the cpu in the working interval
 		for (node=pf.members.first; node!=NULL; node=node->next) {
 			struct process *proc = (struct process*)(node->data);
-			if (process_monitor(proc->history, workingtime, &(proc->history->usage))==-1) {
+			if (process_monitor(proc->history)==-1) {
 				//process is dead, remove it from family
 				fprintf(stderr,"Process %d dead!\n", proc->pid);
 				remove_process_from_family(&pf, proc->pid);
 				continue;
 			}
-			pcpu += proc->history->usage.pcpu;
-			workingrate += proc->history->usage.workingrate;
+//printf("pid %d limit %f pcpu %f wrate %f\n", proc->pid, limit, proc->history->usage.pcpu, proc->history->usage.workingrate);
+			if (proc->history->cpu_usage<0) {
+				continue;
+			}
+			if (pcpu<0) pcpu = 0;
+			pcpu += proc->history->cpu_usage;
+			pcount++;
 		}
-		//average value
-		workingrate /= pf.members.count;
-
-		//TODO: make workingtime customized for each process, now it's equal for all
 
 		//adjust work and sleep time slices
-		if (pcpu>0) {
-			twork.tv_nsec = MIN(TIME_SLOT*limit*1000/pcpu*workingrate,TIME_SLOT*1000);
-		}
-		else if (pcpu==0) {
-			twork.tv_nsec = TIME_SLOT*1000;
-		}
-		else if (pcpu==-1) {
-			//not yet a valid idea of cpu usage
+		if (pcpu < 0) {
+			//it's the 1st cycle, initialize workingrate
 			pcpu = limit;
 			workingrate = limit;
-			twork.tv_nsec = MIN(TIME_SLOT*limit*1000,TIME_SLOT*1000);
+			twork.tv_nsec = TIME_SLOT*limit*1000;
+		}
+		else {
+			//adjust workingrate
+			workingrate = MIN(workingrate / pcpu * limit, 1);
+			twork.tv_nsec = TIME_SLOT*1000*workingrate;
 		}
 		tsleep.tv_nsec = TIME_SLOT*1000-twork.tv_nsec;
 
+//printf("%lf %lf\n", workingrate, pcpu);
+
 		if (verbose && i%10==0 && i>0) {
-			printf("%0.2f%%\t%6ld us\t%6ld us\t%0.2f%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
+			printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
 		}
 
 		//resume processes
@@ -251,8 +256,7 @@ void limit_process(int pid, float limit)
 		workingtime = timediff(&endwork,&startwork);
 
 		if (tsleep.tv_nsec>0) {
-			//stop only if the process is active
-			//stop processes, they have worked enough
+			//stop only if tsleep>0, instead it's useless
 			for (node=pf.members.first; node!=NULL; node=node->next) {
 				struct process *proc = (struct process*)(node->data);
 				if (kill(proc->pid,SIGSTOP)!=0) {
@@ -270,7 +274,6 @@ void limit_process(int pid, float limit)
 }
 
 int main(int argc, char **argv) {
-
 	//get program name
 	char *p=(char*)memrchr(argv[0],(unsigned int)'/',strlen(argv[0]));
 	program_name = p==NULL?argv[0]:(p+1);
@@ -347,12 +350,12 @@ int main(int argc, char **argv) {
 	}
 	
 	if (!process_ok) {
-		fprintf(stderr,"Error: You must specify a target process, by name or by PID\n");
+		fprintf(stderr,"Error: You must specify a target process, either by name or by PID\n");
 		print_usage(stderr, 1);
 		exit(1);
 	}
 	if (pid_ok && exe!=NULL) {
-		fprintf(stderr, "Error: You must specify exactly one process, by name or by PID\n");
+		fprintf(stderr, "Error: You must specify exactly one process, either by name or by PID\n");
 		print_usage(stderr, 1);
 		exit(1);
 	}
@@ -361,7 +364,7 @@ int main(int argc, char **argv) {
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	float limit = perclimit/100.0;
+	double limit = perclimit/100.0;
 	int cpu_count = get_cpu_count();
 	if (limit<0 || limit >cpu_count) {
 		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", cpu_count);
@@ -382,7 +385,7 @@ int main(int argc, char **argv) {
 		printf("Priority changed to %d\n", priority);
 	}
 	else {
-		printf("Cannot change priority\n");
+		printf("Warning: Cannot change priority. Run as root for best results.\n");
 	}
 	
 	while(1) {

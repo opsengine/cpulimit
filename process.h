@@ -32,26 +32,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-//kernel time resolution (inverse of one jiffy interval) in Hertz
+//kernel time resolution timer interrupt frequency in Hertz
 #define HZ sysconf(_SC_CLK_TCK)
-//size of the history circular queue
-#define HISTORY_SIZE 10
-
-//extracted process statistics
-struct cpu_usage {
-	float pcpu;
-	float workingrate;
-};
-
-//process instant photo
-struct process_screenshot {
-	//timestamp
-	struct timespec when;
-	//total jiffies used by the process
-	int jiffies;
-	//cpu time used since previous screenshot expressed in microseconds
-	int cputime;
-};
 
 //process descriptor
 struct process_history {
@@ -61,23 +43,17 @@ struct process_history {
 	char stat_file[20];
 	//read buffer for /proc filesystem
 	char buffer[1024];
-	//recent history of the process (fixed circular queue)
-	struct process_screenshot history[HISTORY_SIZE];
-	//the index of the last screenshot made to the process
-	int front_index;
-	//the index of the oldest screenshot made to the process
-	int tail_index;
-	//how many screenshots we have in the queue (max HISTORY_SIZE)
-	int actual_history_size;
-	//total cputime saved in the history
-	long total_workingtime;
-	//current usage
-	struct cpu_usage usage;
+	//timestamp when last_j and cpu_usage was calculated
+	struct timespec last_sample;
+	//total number of jiffies used by the process at time last_sample
+	int last_jiffies;
+	//cpu usage estimation (value in range 0-1)
+	double cpu_usage;
 };
 
 int process_init(struct process_history *proc, int pid);
 
-int process_monitor(struct process_history *proc, int last_working_quantum, struct cpu_usage *usage);
+int process_monitor(struct process_history *proc);
 
 int process_close(struct process_history *proc);
 
