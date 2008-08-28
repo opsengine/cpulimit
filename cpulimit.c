@@ -366,6 +366,7 @@ int main(int argc, char **argv) {
 	}
 	double limit = perclimit/100.0;
 	int cpu_count = get_cpu_count();
+	printf("%d cpu detected\n", cpu_count);
 	if (limit<0 || limit >cpu_count) {
 		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", cpu_count);
 		print_usage(stderr, 1);
