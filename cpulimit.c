@@ -493,18 +493,19 @@ int main(int argc, char **argv) {
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
 			limit_process(child, limit);
+			//exit(0);
 		}
 		else {
 			//child code
 			int ret = execvp(cmd, cmd_args);
 			//if we are here there was an error, show it
 			perror("Error");
-			exit(ret);
+			_exit(ret);
 		}
 		return 0;
 	}
 
-	while(!lazy) {
+	do {
 		//look for the target process..or wait for it
 		pid_t ret = 0;
 		if (pid_ok) {
@@ -540,8 +541,8 @@ int main(int argc, char **argv) {
 			limit_process(pid, limit);
 		}
 		sleep(2);
-	}
+	} while(!lazy);
 	
-	return 0;
+	exit(0);
 }
 
