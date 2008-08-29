@@ -23,19 +23,22 @@
  * This is a simple program to limit the cpu usage of a process
  * If you modify this code, send me a copy please
  *
- * Date:    29/8/2008
- * Version: 1.2 alpha
+ * Date:    30/8/2008
+ * Version: 1.2 beta
  * Get the latest version at: http://cpulimit.sourceforge.net
  *
- * Changelog:
- * - experimental support for daemonize
- * - control algorithm has been optimized
- * - no longer segmentation fault when some processes exit
- * - no longer memory corruption when some processes exit
- * - cpulimit exits if --lazy option is specified and the process terminates
- * - light and scalable algorithm for subprocesses detection and control
+ * Changelog from 1.1:
+ * - reorganization of the code, splitted in more source files
  * - cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
- * - in order to avoid deadlock, cpulimit prevents to limit itself
+ * - in order to avoid deadlocks, cpulimit now prevents to limit itself
+ * - option --path eliminated, use --exe instead both for absolute path and file name
+ * - call setpriority() just once
+ * - no more segmentation fault when processes exit
+ * - no more memory corruption when processes exit
+ * - cpulimit exits if --lazy option is specified and the process terminates
+ * - target process can be created on-fly given command line
+ * - light and scalable algorithm for subprocesses detection and limitation
+ * - mac os support
  * - minor enhancements and bugfixes
  *
  */
@@ -57,6 +60,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
 #include "process.h"
 #include "procutils.h"
@@ -493,7 +497,9 @@ int main(int argc, char **argv) {
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
 			limit_process(child, limit);
-			//exit(0);
+			int status;
+			waitpid(child, &status, 0);
+			exit(status);
 		}
 		else {
 			//child code
@@ -502,7 +508,6 @@ int main(int argc, char **argv) {
 			perror("Error");
 			_exit(ret);
 		}
-		return 0;
 	}
 
 	do {
