@@ -15,6 +15,7 @@ int main()
 	printf("Parent: PID %d\n", getpid());
 	getchar();
 	sleep(1);
+	while(1);
 	int i;
 	int children[N];
 	for (i=0;i<N;i++) {

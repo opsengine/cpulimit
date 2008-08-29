@@ -39,9 +39,9 @@ int process_init(struct process_history *proc, int pid)
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
-static inline unsigned long timediff(const struct timespec *t1,const struct timespec *t2)
+static inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
 {
-	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_nsec/1000 - t2->tv_nsec/1000);
+	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
 }
 
 static int get_jiffies(struct process_history *proc) {
@@ -68,8 +68,8 @@ int process_monitor(struct process_history *proc)
 {
 	int j = get_jiffies(proc);
 	if (j<0) return -1; //error retrieving jiffies count (maybe the process is dead)
-	struct timespec now;
-	clock_gettime(CLOCK_REALTIME, &now);
+	struct timeval now;
+	gettimeofday(&now, NULL);
 	if (proc->last_jiffies==-1) {
 		//store current time
 		proc->last_sample = now;

@@ -44,7 +44,7 @@ struct process_history {
 	//read buffer for /proc filesystem
 	char buffer[1024];
 	//timestamp when last_j and cpu_usage was calculated
-	struct timespec last_sample;
+	struct timeval last_sample;
 	//total number of jiffies used by the process at time last_sample
 	int last_jiffies;
 	//cpu usage estimation (value in range 0-1)

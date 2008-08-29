@@ -23,20 +23,19 @@
  * This is a simple program to limit the cpu usage of a process
  * If you modify this code, send me a copy please
  *
- * Date:    15/2/2008
+ * Date:    29/8/2008
  * Version: 1.2 alpha
  * Get the latest version at: http://cpulimit.sourceforge.net
  *
  * Changelog:
- * - reorganization of the code, splitted in more source files
- * - control function process_monitor() optimized by eliminating an unnecessary loop
- * - experimental support for multiple control of children processes and threads
- *   children detection algorithm seems heavy because of the amount of code,
- *   but it's designed to be scalable when there are a lot of children processes
+ * - experimental support for daemonize
+ * - control algorithm has been optimized
+ * - no longer segmentation fault when some processes exit
+ * - no longer memory corruption when some processes exit
+ * - cpulimit exits if --lazy option is specified and the process terminates
+ * - light and scalable algorithm for subprocesses detection and control
  * - cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
  * - in order to avoid deadlock, cpulimit prevents to limit itself
- * - option --path eliminated, use --exe instead both for absolute path and file name
- * - deleted almost every setpriority(), just set it once at startup
  * - minor enhancements and bugfixes
  *
  */
@@ -106,9 +105,9 @@ int get_cpu_count()
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
-inline unsigned long timediff(const struct timespec *t1,const struct timespec *t2)
+inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
 {
-	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_nsec/1000 - t2->tv_nsec/1000);
+	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
 }
 
 //returns t1-t2 in microseconds
@@ -134,10 +133,11 @@ void quit(int sig)
 
 void print_usage(FILE *stream, int exit_code)
 {
-	fprintf(stream, "Usage: %s TARGET [OPTIONS...]\n",program_name);
+	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n",program_name);
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
 	fprintf(stream, "      -p, --pid=N        pid of the process (implies -z)\n");
 	fprintf(stream, "      -e, --exe=FILE     name of the executable program file or absolute path name\n");
+	fprintf(stream, "      COMMAND            run this command and limit it\n");
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N      percentage of cpu allowed from 0 to 100 (required)\n");
 	fprintf(stream, "      -v, --verbose      show control statistics\n");
@@ -153,14 +153,14 @@ void limit_process(int pid, double limit)
 	//slice of the slot in which the process is stopped
 	struct timespec tsleep;
 	//when the last twork has started
-	struct timespec startwork;
+	struct timeval startwork;
 	//when the last twork has finished
-	struct timespec endwork;
+	struct timeval endwork;
 	//initialization
 	memset(&twork, 0, sizeof(struct timespec));
 	memset(&tsleep, 0, sizeof(struct timespec));
-	memset(&startwork, 0, sizeof(struct timespec));
-	memset(&endwork, 0, sizeof(struct timespec));	
+	memset(&startwork, 0, sizeof(struct timeval));
+	memset(&endwork, 0, sizeof(struct timeval));	
 	//last working time in microseconds
 	unsigned long workingtime = 0;
 	int i = 0;
@@ -195,11 +195,14 @@ void limit_process(int pid, double limit)
 			}
 		}
 
+		if (pf.members.count==0) {
+			printf("No more processes.\n");
+			break;
+		}
+		
 		//total cpu actual usage (range 0-1)
 		//1 means that the processes are using 100% cpu
 		double pcpu = -1;
-		//number of processes in the family
-		int pcount = 0;
 		
 		//estimate how much the controlled processes are using the cpu in the working interval
 		for (node=pf.members.first; node!=NULL; node=node->next) {
@@ -210,13 +213,11 @@ void limit_process(int pid, double limit)
 				remove_process_from_family(&pf, proc->pid);
 				continue;
 			}
-//printf("pid %d limit %f pcpu %f wrate %f\n", proc->pid, limit, proc->history->usage.pcpu, proc->history->usage.workingrate);
 			if (proc->history->cpu_usage<0) {
 				continue;
 			}
 			if (pcpu<0) pcpu = 0;
 			pcpu += proc->history->cpu_usage;
-			pcount++;
 		}
 
 		//adjust work and sleep time slices
@@ -233,8 +234,6 @@ void limit_process(int pid, double limit)
 		}
 		tsleep.tv_nsec = TIME_SLOT*1000-twork.tv_nsec;
 
-//printf("%lf %lf\n", workingrate, pcpu);
-
 		if (verbose && i%10==0 && i>0) {
 			printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
 		}
@@ -250,9 +249,9 @@ void limit_process(int pid, double limit)
 		}
 
 		//now processes are free to run (same working slice for all)
-		clock_gettime(CLOCK_REALTIME,&startwork);
+		gettimeofday(&startwork, NULL);
 		nanosleep(&twork,NULL);
-		clock_gettime(CLOCK_REALTIME,&endwork);
+		gettimeofday(&endwork, NULL);
 		workingtime = timediff(&endwork,&startwork);
 
 		if (tsleep.tv_nsec>0) {
@@ -273,6 +272,49 @@ void limit_process(int pid, double limit)
 	cleanup_process_family(&pf);
 }
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+
+void daemonize(void)
+{
+    pid_t pid, sid;
+
+    /* already a daemon */
+    if ( getppid() == 1 ) return;
+
+    /* Fork off the parent process */
+    pid = fork();
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+    /* If we got a good PID, then we can exit the parent process. */
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    /* At this point we are executing as the child process */
+
+    /* Change the file mode mask */
+    umask(0);
+
+    /* Create a new SID for the child process */
+    sid = setsid();
+    if (sid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    /* Change the current working directory.  This prevents the current
+       directory from being locked; hence not being able to remove it. */
+    if ((chdir("/")) < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    /* Redirect standard files to /dev/null */
+    freopen( "/dev/null", "r", stdin);
+    freopen( "/dev/null", "w", stdout);
+    freopen( "/dev/null", "w", stderr);
+}
+
 int main(int argc, char **argv) {
 	//get program name
 	char *p=(char*)memrchr(argv[0],(unsigned int)'/',strlen(argv[0]));
@@ -282,8 +324,8 @@ int main(int argc, char **argv) {
 	//argument variables
 	const char *exe = NULL;
 	int perclimit = 0;
+	int exe_ok = 0;
 	int pid_ok = 0;
-	int process_ok = 0;
 	int limit_ok = 0;
 	int pid = 0;
 
@@ -291,7 +333,7 @@ int main(int argc, char **argv) {
 	int next_option;
     int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "p:e:l:vzh";
+	const char* short_options = "+p:e:l:vzh";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL,     'p' },
@@ -308,13 +350,11 @@ int main(int argc, char **argv) {
 		switch(next_option) {
 			case 'p':
 				pid = atoi(optarg);
-				//todo: verify pid is valid
 				pid_ok = 1;
-				process_ok = 1;
 				break;
 			case 'e':
 				exe = optarg;
-				process_ok = 1;
+				exe_ok = 1;
 				break;
 			case 'l':
 				perclimit = atoi(optarg);
@@ -339,26 +379,15 @@ int main(int argc, char **argv) {
 		}
 	} while(next_option != -1);
 
-	if (pid!=0) {
-		lazy = 1;
-	}
-	
 	if (pid_ok && (pid<=1 || pid>=65536)) {
 		fprintf(stderr,"Error: Invalid value for argument PID\n");
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	
-	if (!process_ok) {
-		fprintf(stderr,"Error: You must specify a target process, either by name or by PID\n");
-		print_usage(stderr, 1);
-		exit(1);
+	if (pid!=0) {
+		lazy = 1;
 	}
-	if (pid_ok && exe!=NULL) {
-		fprintf(stderr, "Error: You must specify exactly one process, either by name or by PID\n");
-		print_usage(stderr, 1);
-		exit(1);
-	}
+
 	if (!limit_ok) {
 		fprintf(stderr,"Error: You must specify a cpu limit percentage\n");
 		print_usage(stderr, 1);
@@ -366,17 +395,33 @@ int main(int argc, char **argv) {
 	}
 	double limit = perclimit/100.0;
 	int cpu_count = get_cpu_count();
-	printf("%d cpu detected\n", cpu_count);
 	if (limit<0 || limit >cpu_count) {
 		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", cpu_count);
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	//parameters are all ok!
+
+	int command_mode = optind<argc;
+	if (exe_ok + pid_ok + command_mode == 0) {
+		fprintf(stderr,"Error: You must specify one target process, either by name, pid, or command line\n");
+		print_usage(stderr, 1);
+		exit(1);
+	}
+	
+	if (exe_ok + pid_ok + command_mode > 1) {
+		fprintf(stderr,"Error: You must specify exactly one target process, either by name, pid, or command line\n");
+		print_usage(stderr, 1);
+		exit(1);
+	}
+
+	//all arguments are ok!
 	signal(SIGINT, quit);
 	signal(SIGTERM, quit);
 
-	//try to renice with the best value
+	//print the number of available cpu
+	printf("%d cpu detected\n", cpu_count);
+
+	//try to renice for a higher priority
 	int old_priority = getpriority(PRIO_PROCESS, 0);
 	int priority = old_priority;
 	while (setpriority(PRIO_PROCESS, 0, priority-1) == 0 && priority>MAX_PRIORITY) {
@@ -386,9 +431,36 @@ int main(int argc, char **argv) {
 		printf("Priority changed to %d\n", priority);
 	}
 	else {
-		printf("Warning: Cannot change priority. Run as root for best results.\n");
+		printf("Warning: Cannot change priority. Run as root or renice for best results.\n");
 	}
-	
+
+	if (command_mode) {
+		int i;
+		//executable file
+		const char *cmd = argv[optind];
+		//command line arguments
+		char **cmd_args = malloc((argc-optind)*sizeof(char*));
+		if (cmd_args==NULL) exit(2);
+		for (i=0; i<argc-optind-1; i++) {
+			cmd_args[i] = argv[i+optind+1];
+		}
+		cmd_args[i] = NULL;
+
+		printf("Running command: %s ", cmd);
+		for (i=0; i<argc-optind-1; i++) {
+			printf("%s ", cmd_args[i]);
+		}
+		printf("\n");
+
+//		daemonize();
+		//TODO: fork(), call limit_process() in the parent and execvp() in the child()
+		
+		int ret = execvp(cmd, cmd_args);
+		
+		//if we are here there was an ERROR!
+		exit(ret);
+	}
+
 	while(1) {
 		//look for the target process..or wait for it
 		int ret = 0;
