@@ -380,7 +380,7 @@ int look_for_process_by_name(const char *process_name)
 	//the name of /proc/pid/exe symbolic link pointing to the executable file
 	char exelink[20];
 	//the name of the executable file
-	char *exepath = malloc((PATH_MAX+1) * sizeof(char));
+	char exepath[PATH_MAX+1];
 	//whether the variable process_name is the absolute path or not
 	int is_absolute_path = process_name[0] == '/';
 	//flag indicating if the a process with given name was found
@@ -402,11 +402,13 @@ int look_for_process_by_name(const char *process_name)
 		//read the executable link
 		sprintf(exelink,"/proc/%d/exe",pid);
 		int size = readlink(exelink, exepath, sizeof(exepath));
+		exepath[size] = '\0';
 #elif defined __APPLE__
 		//get the executable file name
 		if (GetProcessForPID(pid, &psn)) return -1;
 		if (GetProcessInformation(&psn, &info)) return -1;
 		int size = strlen(info.processName);
+		strcpy(exepath, info.processName);
 #endif
 		if (size>0) {
 			found = 0;
@@ -433,7 +435,6 @@ int look_for_process_by_name(const char *process_name)
 			}
 		}
 	}
-	free(exepath);
 #ifdef __APPLE__
 	free(info.processName);
 #endif
