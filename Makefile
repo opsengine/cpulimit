@@ -1,5 +1,6 @@
-CC=gcc
-CFLAGS=-Wall -D_GNU_SOURCE -O2
+CC?=gcc
+CFLAGS?=-Wall -O2
+CFLAGS+=-D_GNU_SOURCE
 TARGETS=cpulimit ptest
 LIBS=process.o procutils.o list.o
 
