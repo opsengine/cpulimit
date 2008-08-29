@@ -38,11 +38,13 @@
 //process descriptor
 struct process_history {
 	//the PID of the process
-	int pid;
+	pid_t pid;
+#ifdef __GNUC__
 	//name of /proc/PID/stat file
 	char stat_file[20];
 	//read buffer for /proc filesystem
 	char buffer[1024];
+#endif
 	//timestamp when last_j and cpu_usage was calculated
 	struct timeval last_sample;
 	//total number of jiffies used by the process at time last_sample
@@ -51,7 +53,7 @@ struct process_history {
 	double cpu_usage;
 };
 
-int process_init(struct process_history *proc, int pid);
+int process_init(struct process_history *proc, pid_t pid);
 
 int process_monitor(struct process_history *proc);
 

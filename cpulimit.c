@@ -46,24 +46,29 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
-#include <sys/time.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <signal.h>
-#include <sys/resource.h>
 #include <string.h>
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/resource.h>
 
 #include "process.h"
 #include "procutils.h"
 #include "list.h"
 
 //some useful macro
+#ifndef MIN
 #define MIN(a,b) (a<b?a:b)
+#endif
+#ifndef MAX
 #define MAX(a,b) (a>b?a:b)
-#define print_caption()	printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n")
+#endif
 
 //control time slot in microseconds
 //each slot is splitted in a working slice and a sleeping slice
@@ -76,7 +81,7 @@
 //the "family"
 struct process_family pf;
 //pid of cpulimit
-int cpulimit_pid;
+pid_t cpulimit_pid;
 //name of this program (maybe cpulimit...)
 char *program_name;
 
@@ -87,11 +92,28 @@ int verbose = 0;
 //lazy mode (exits if there is no process)
 int lazy = 0;
 
+void *memrchr(const void *s, int c, size_t n)
+{
+	const unsigned char *start=s,*end=s;
+
+	end+=n-1;
+
+	while(end>=start) {
+		if(*end==c)
+			return (void *)end;
+		else
+			end--;
+	}
+
+	return NULL;
+}
+
 //how many cpu do we have?
 int get_cpu_count()
 {
-	FILE *fd;
 	int cpu_count = 0;
+#ifdef __GNUC__
+	FILE *fd;
 	char line[100];
 	fd = fopen("/proc/stat", "r");
 	if (fd < 0)
@@ -102,6 +124,11 @@ int get_cpu_count()
 	}
 	fclose(fd);
 	return cpu_count - 1;
+#elif defined __APPLE__
+//TODO: test sysconf(_SC_NPROCESSORS_ONLN), sysconf(_SC_NPROCESSORS_CONF)
+	if (sysctlbyname("hw.ncpu",&cpu_count,sizeof(int),NULL,0)) return 1;
+	return cpu_count;
+#endif
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
@@ -146,7 +173,7 @@ void print_usage(FILE *stream, int exit_code)
 	exit(exit_code);
 }
 
-void limit_process(int pid, double limit)
+void limit_process(pid_t pid, double limit)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -177,7 +204,8 @@ void limit_process(int pid, double limit)
 
 	while(1) {
 
-		if (i%200==0 && verbose) print_caption();
+		if (i%200==0 && verbose)
+			printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n");
 
 		if (i%10==0) {
 			//update the process family (checks only for new members)
@@ -327,7 +355,7 @@ int main(int argc, char **argv) {
 	int exe_ok = 0;
 	int pid_ok = 0;
 	int limit_ok = 0;
-	int pid = 0;
+	pid_t pid = 0;
 
 	//parse arguments
 	int next_option;
@@ -447,11 +475,11 @@ int main(int argc, char **argv) {
 		cmd_args[i] = NULL;
 
 		if (verbose) {
-			printf("Running command: %s ", cmd);
+			printf("Running command: '%s", cmd);
 			for (i=0; i<argc-optind-1; i++) {
-				printf("%s ", cmd_args[i]);
+				printf(" %s", cmd_args[i]);
 			}
-			printf("\n");
+			printf("'\n");
 		}
 		
 		int child = fork();
@@ -469,7 +497,8 @@ int main(int argc, char **argv) {
 		else {
 			//child code
 			int ret = execvp(cmd, cmd_args);
-			//if we are here there was a fatal ERROR!
+			//if we are here there was an error, show it
+			perror("Error");
 			exit(ret);
 		}
 		return 0;
@@ -477,7 +506,7 @@ int main(int argc, char **argv) {
 
 	while(!lazy) {
 		//look for the target process..or wait for it
-		int ret = 0;
+		pid_t ret = 0;
 		if (pid_ok) {
 			//search by pid
 			ret = look_for_process_by_pid(pid);

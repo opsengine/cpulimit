@@ -23,13 +23,19 @@
 
 #include "process.h"
 
+#ifdef __APPLE__
+#include <Carbon/Carbon.h>
+#endif
+
 int process_init(struct process_history *proc, int pid)
 {
+#ifdef __GNUC__
 	//test /proc file descriptor for reading
 	sprintf(proc->stat_file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(proc->stat_file, "r");
 	if (fd == NULL) return 1;
 	fclose(fd);
+#endif
 	//init properties
 	proc->pid = pid;
 	proc->cpu_usage = 0;
@@ -45,6 +51,7 @@ static inline unsigned long timediff(const struct timeval *t1,const struct timev
 }
 
 static int get_jiffies(struct process_history *proc) {
+#ifdef __GNUC__
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
 	fgets(proc->buffer, sizeof(proc->buffer),f);
@@ -60,8 +67,16 @@ static int get_jiffies(struct process_history *proc) {
 	//kernel mode jiffies
 	int ktime = atoi(p+1);
 	return utime+ktime;
+#elif defined __APPLE__
+	ProcessSerialNumber psn;
+	ProcessInfoRec info;
+	if (GetProcessForPID(proc->pid, &psn)) return -1;
+	if (GetProcessInformation(&psn, &info)) return -1;
+	return info.processActiveTime;
+#endif
 }
 
+//parameter in range 0-1
 #define ALFA 0.08
 
 int process_monitor(struct process_history *proc)

@@ -25,8 +25,9 @@
 /* PROCESS STATISTICS FUNCTIONS */
 
 // returns pid of the parent process
-static int getppid_of(int pid)
+static pid_t getppid_of(pid_t pid)
 {
+#ifdef __GNUC__
 	char file[20];
 	char buffer[1024];
 	sprintf(file, "/proc/%d/stat", pid);
@@ -40,13 +41,25 @@ static int getppid_of(int pid)
 	while (sp--)
 		p = memchr(p+1,' ',sizeof(buffer) - (p-buffer));
 	//pid of the parent process
-	int ppid = atoi(p+1);
+	pid_t ppid = atoi(p+1);
 	return ppid;
+#elif defined __APPLE__
+	ProcessSerialNumber psn_child;
+	ProcessInfoRec info_child;
+	pid_t ppid;
+	memset(&info_child, 0, sizeof(ProcessInfoRec));
+	info_child.processInfoLength = sizeof(ProcessInfoRec);
+	if (GetProcessForPID(pid, &psn_child)) return -1;
+	if (GetProcessInformation(&psn_child, &info_child)) return -1;
+	if (GetProcessPID (&(info_child.processLauncher), &ppid)) return -1;
+	return ppid;
+#endif
 }
 
 // returns the start time of a process (used with pid to identify a process)
-static int get_starttime(int pid)
+static int get_starttime(pid_t pid)
 {
+#ifdef __GNUC__
 	char file[20];
 	char buffer[1024];
 	sprintf(file, "/proc/%d/stat", pid);
@@ -62,11 +75,21 @@ static int get_starttime(int pid)
 	//start time of the process
 	int time = atoi(p+1);
 	return time;
+#elif defined __APPLE__
+	ProcessSerialNumber psn;
+	ProcessInfoRec info;
+	memset(&info, 0, sizeof(ProcessInfoRec));
+	info.processInfoLength = sizeof(ProcessInfoRec);
+	if (GetProcessForPID(pid, &psn)) return -1;
+	if (GetProcessInformation(&psn, &info)) return -1;
+	return info.processLaunchDate;
+#endif
 }
 
 // detects whether a process is a kernel thread or not
-static int is_kernel_thread(int pid)
+static int is_kernel_thread(pid_t pid)
 {
+#ifdef __GNUC__
 	static char statfile[20];
 	static char buffer[64];
 	int ret;
@@ -77,10 +100,14 @@ static int is_kernel_thread(int pid)
 	ret = strncmp(buffer,"0 0 0",3)==0;
 	fclose(fd);
 	return ret;
+#elif defined __APPLE__
+	return 0;
+#endif
 }
 
 // returns 1 if pid is a user process, 0 otherwise
-static int process_exists(int pid) {
+static int process_exists(pid_t pid) {
+#ifdef __GNUC__
 	static char statfile[20];
 	static char buffer[64];
 	int ret;
@@ -91,6 +118,10 @@ static int process_exists(int pid) {
 	ret = strncmp(buffer,"0 0 0",3)!=0;
 	fclose(fd);
 	return ret;
+#elif defined __APPLE__
+	ProcessSerialNumber psn;
+	return !GetProcessForPID(pid, &psn);
+#endif
 }
 
 /* PID HASH FUNCTIONS */
@@ -112,7 +143,6 @@ static int hash_process(struct process_family *f, struct process *p)
 		//list already exists
 		struct process *tmp = (struct process*)locate_elem(*l, p);
 		if (tmp != NULL) {
-			//TODO: should free() something? tmp? p?
 			//update process info
 			memcpy(tmp, p, sizeof(struct process));
 			free(p);
@@ -129,7 +159,7 @@ static int hash_process(struct process_family *f, struct process *p)
 	return ret;
 }
 
-static void unhash_process(struct process_family *f, int pid) {
+static void unhash_process(struct process_family *f, pid_t pid) {
 	//remove process from hashtable
 	struct list **l = &(f->hashtable[pid_hashfn(pid)]);
 	if (*l == NULL)
@@ -140,21 +170,16 @@ static void unhash_process(struct process_family *f, int pid) {
 	f->count--;
 }
 
-static struct process *seek_process(struct process_family *f, int pid)
+static struct process *seek_process(struct process_family *f, pid_t pid)
 {
 	struct list **l = &(f->hashtable[pid_hashfn(pid)]);
 	return (*l != NULL) ? (struct process*)locate_elem(*l, &pid) : NULL;
 }
 
 /*
-static int is_member(struct process_family *f, int pid) {
+static int is_member(struct process_family *f, pid_t pid) {
 	struct process *p = seek_process(f, pid);
 	return (p!=NULL && p->member);
-}
-
-static int exists(struct process_family *f, int pid) {
-	struct process *p = seek_process(f, pid);
-	return p!=NULL;
 }
 */
 
@@ -162,19 +187,25 @@ static int exists(struct process_family *f, int pid) {
 
 // creates an object that browse all running processes
 static int init_process_iterator(struct process_iterator *i) {
+#ifdef __GNUC__
 	//open a directory stream to /proc directory
 	if ((i->dip = opendir("/proc")) == NULL) {
 		perror("opendir");
 		return -1;
 	}
+#elif defined __APPLE__
+	i->psn.highLongOfPSN = kNoProcess;
+	i->psn.lowLongOfPSN = kNoProcess;
+#endif
 	return 0;
 }
 
 // reads the next user process from /process
 // automatic closing if the end of the list is reached
 static int read_next_process(struct process_iterator *i) {
+	pid_t pid = 0;
+#ifdef __GNUC__
 	//read in from /proc and seek for process dirs
-	int pid = 0;
 	while ((i->dit = readdir(i->dip)) != NULL) {
 		pid = atoi(i->dit->d_name);
 		if (pid<=0 || is_kernel_thread(pid))
@@ -186,6 +217,13 @@ static int read_next_process(struct process_iterator *i) {
 		//no more processes, release resources
 		closedir(i->dip);
 	}
+#elif defined __APPLE__
+	ProcessInfoRec info;
+	memset(&info, 0, sizeof(ProcessInfoRec));
+	info.processInfoLength = sizeof(ProcessInfoRec);
+	if (GetNextProcess(&i->psn)) return 0;
+	GetProcessPID(&(i->psn), &pid);
+#endif
 	return pid;
 }
 
@@ -193,7 +231,7 @@ static int read_next_process(struct process_iterator *i) {
 
 // searches for all the processes derived from father and stores them
 // in the process family struct
-int create_process_family(struct process_family *f, int father)
+int create_process_family(struct process_family *f, pid_t father)
 {
 	//process list initialization (4 bytes key)
 	init_list(&(f->members), 4);
@@ -283,7 +321,7 @@ int update_process_family(struct process_family *f)
 }
 
 // removes a process from the family by its pid
-void remove_process_from_family(struct process_family *f, int pid)
+void remove_process_from_family(struct process_family *f, pid_t pid)
 {
 	struct list_node *node = locate_node(&(f->members), &pid);
 	if (node != NULL) {
@@ -324,7 +362,7 @@ void cleanup_process_family(struct process_family *f)
 // return:  pid of the found process, if it is found
 //          0, if it's not found
 //          negative pid, if it is found but it's not possible to control it
-int look_for_process_by_pid(int pid)
+int look_for_process_by_pid(pid_t pid)
 {
 	if (process_exists(pid))
 		return (kill(pid,SIGCONT)==0) ? pid : -pid;
@@ -337,34 +375,48 @@ int look_for_process_by_pid(int pid)
 // return:  pid of the found process, if it is found
 //         0, if it's not found
 //         negative pid, if it is found but it's not possible to control it
-int look_for_process_by_name(const char *process)
+int look_for_process_by_name(const char *process_name)
 {
 	//the name of /proc/pid/exe symbolic link pointing to the executable file
 	char exelink[20];
 	//the name of the executable file
-	char exepath[PATH_MAX+1];
-	//whether the variable process is the absolute path or not
-	int is_absolute_path = process[0] == '/';
+	char *exepath = malloc((PATH_MAX+1) * sizeof(char));
+	//whether the variable process_name is the absolute path or not
+	int is_absolute_path = process_name[0] == '/';
 	//flag indicating if the a process with given name was found
 	int found = 0;
 
 	//process iterator
 	struct process_iterator iter;
 	init_process_iterator(&iter);
-	int pid = 0;
+	pid_t pid = 0;
+#ifdef __APPLE__
+	ProcessSerialNumber psn;
+	ProcessInfoRec info;
+	memset(&info, 0, sizeof(ProcessInfoRec));
+	info_child.processInfoLength = sizeof(ProcessInfoRec);
+	info.processName = (char*)malloc(64*sizeof(char));
+#endif
 	while ((pid = read_next_process(&iter))) {
+#ifdef __GNUC__
 		//read the executable link
 		sprintf(exelink,"/proc/%d/exe",pid);
 		int size = readlink(exelink, exepath, sizeof(exepath));
+#elif defined __APPLE__
+		//get the executable file name
+		if (GetProcessForPID(pid, &psn)) return -1;
+		if (GetProcessInformation(&psn, &info)) return -1;
+		int size = strlen(info.processName);
+#endif
 		if (size>0) {
 			found = 0;
-			if (is_absolute_path && strncmp(exepath, process, size)==0 && size==strlen(process)) {
+			if (is_absolute_path && strncmp(exepath, process_name, size)==0 && size==strlen(process_name)) {
 				//process found
 				found = 1;
 			}
 			else {
 				//process found
-				if (strncmp(exepath + size - strlen(process), process, strlen(process))==0) {
+				if (strncmp(exepath + size - strlen(process_name), process_name, strlen(process_name))==0) {
 					found = 1;
 				}
 			}
@@ -381,6 +433,10 @@ int look_for_process_by_name(const char *process)
 			}
 		}
 	}
+	free(exepath);
+#ifdef __APPLE__
+	free(info.processName);
+#endif
 	if (found == 1) {
 		//ok, the process was found
 		return pid;

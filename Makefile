@@ -1,13 +1,17 @@
 CC?=gcc
 CFLAGS?=-Wall -O2
-CFLAGS+=-D_GNU_SOURCE
-TARGETS=cpulimit ptest
+TARGETS=cpulimit
 LIBS=process.o procutils.o list.o
+OSXFLAGS=-framework Carbon
+
+ifeq ($(OS), APPLE)
+CFLAGS+=-framework Carbon
+endif
 
 all::	$(TARGETS)
 
 cpulimit:	cpulimit.c $(LIBS)
-	$(CC) -o cpulimit cpulimit.c $(LIBS) -lrt $(CFLAGS)
+	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
 
 process.o: process.c process.h
 	$(CC) -c process.c $(CFLAGS)
@@ -17,9 +21,6 @@ procutils.o: procutils.c procutils.h
 
 list.o: list.c list.h
 	$(CC) -c list.c $(CFLAGS)
-
-ptest: ptest.c
-	$(CC) -o ptest ptest.c -lrt $(CFLAGS)
 
 clean:
 	rm -f *~ *.o $(TARGETS)

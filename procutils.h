@@ -30,8 +30,17 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <string.h>
+#include <limits.h>
 #include "list.h"
 #include "process.h"
+
+#ifdef __APPLE__
+#include <Carbon/Carbon.h>
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
@@ -39,7 +48,7 @@
 // a hierarchy of processes
 struct process_family {
 	//the (god)father of the process family
-	int father;
+	pid_t father;
 	//process list (father process is the first element)
 	//elements are struct process
 	struct list members;
@@ -53,7 +62,7 @@ struct process_family {
 // process descriptor
 struct process {
 	//pid of the process
-	int pid;
+	pid_t pid;
 	//start time
 	int starttime;
 	//is member of the family?
@@ -63,13 +72,17 @@ struct process {
 
 // object to enumerate running processes
 struct process_iterator {
+#ifdef __GNUC__
 	DIR *dip;
-	struct dirent *dit;	
+	struct dirent *dit;
+#elif defined __APPLE__
+	ProcessSerialNumber psn;
+#endif
 };
 
 // searches for all the processes derived from father and stores them
 // in the process family struct
-int create_process_family(struct process_family *f, int father);
+int create_process_family(struct process_family *f, pid_t father);
 
 // checks if there are new processes born in the specified family
 // if any they are added to the members list
@@ -77,7 +90,7 @@ int create_process_family(struct process_family *f, int father);
 int update_process_family(struct process_family *f);
 
 // removes a process from the family by its pid
-void remove_process_from_family(struct process_family *f, int pid);
+void remove_process_from_family(struct process_family *f, pid_t pid);
 
 // free the heap memory used by a process family
 void cleanup_process_family(struct process_family *f);
@@ -88,6 +101,6 @@ int look_for_process_by_name(const char *process);
 
 // searches a process given its pid
 // returns the pid, or 0 if it's not found
-int look_for_process_by_pid(int pid);
+int look_for_process_by_pid(pid_t pid);
 
 #endif
