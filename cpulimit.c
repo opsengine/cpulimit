@@ -137,7 +137,7 @@ void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
 	fprintf(stream, "      -p, --pid=N        pid of the process (implies -z)\n");
 	fprintf(stream, "      -e, --exe=FILE     name of the executable program file or absolute path name\n");
-	fprintf(stream, "      COMMAND            run this command and limit it\n");
+	fprintf(stream, "      COMMAND [ARGS]     run this command and limit it\n");
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N      percentage of cpu allowed from 0 to 100 (required)\n");
 	fprintf(stream, "      -v, --verbose      show control statistics\n");
@@ -419,7 +419,7 @@ int main(int argc, char **argv) {
 	signal(SIGTERM, quit);
 
 	//print the number of available cpu
-	printf("%d cpu detected\n", cpu_count);
+	if (verbose) printf("%d cpu detected\n", cpu_count);
 
 	//try to renice for a higher priority
 	int old_priority = getpriority(PRIO_PROCESS, 0);
@@ -428,10 +428,10 @@ int main(int argc, char **argv) {
 		priority--;	
 	}
 	if (priority != old_priority) {
-		printf("Priority changed to %d\n", priority);
+		if (verbose) printf("Priority changed to %d\n", priority);
 	}
 	else {
-		printf("Warning: Cannot change priority. Run as root or renice for best results.\n");
+		if (verbose) printf("Warning: Cannot change priority. Run as root or renice for best results.\n");
 	}
 
 	if (command_mode) {
@@ -446,22 +446,36 @@ int main(int argc, char **argv) {
 		}
 		cmd_args[i] = NULL;
 
-		printf("Running command: %s ", cmd);
-		for (i=0; i<argc-optind-1; i++) {
-			printf("%s ", cmd_args[i]);
+		if (verbose) {
+			printf("Running command: %s ", cmd);
+			for (i=0; i<argc-optind-1; i++) {
+				printf("%s ", cmd_args[i]);
+			}
+			printf("\n");
 		}
-		printf("\n");
-
-//		daemonize();
-		//TODO: fork(), call limit_process() in the parent and execvp() in the child()
 		
-		int ret = execvp(cmd, cmd_args);
-		
-		//if we are here there was an ERROR!
-		exit(ret);
+		int child = fork();
+		if (child < 0) {
+			exit(EXIT_FAILURE);
+		}
+		else if (child > 0) {
+			//parent code
+//			daemonize();
+			freopen( "/dev/null", "r", stdin);
+			freopen( "/dev/null", "w", stdout);
+			freopen( "/dev/null", "w", stderr);
+			limit_process(child, limit);
+		}
+		else {
+			//child code
+			int ret = execvp(cmd, cmd_args);
+			//if we are here there was a fatal ERROR!
+			exit(ret);
+		}
+		return 0;
 	}
 
-	while(1) {
+	while(!lazy) {
 		//look for the target process..or wait for it
 		int ret = 0;
 		if (pid_ok) {
@@ -495,10 +509,6 @@ int main(int argc, char **argv) {
 			printf("Process %d found\n", pid);
 			//control
 			limit_process(pid, limit);
-		}
-		if (lazy) {
-			printf("Giving up...\n");
-			break;
 		}
 		sleep(2);
 	}
