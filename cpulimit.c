@@ -116,24 +116,7 @@ void *memrchr(const void *s, int c, size_t n)
 //how many cpu do we have?
 int get_cpu_count()
 {
-	int cpu_count = 0;
-#ifdef __linux__
-	FILE *fd;
-	char line[100];
-	fd = fopen("/proc/stat", "r");
-	if (fd < 0)
-		return 0; //are we running Linux??
-	while (fgets(line,sizeof(line),fd)!=NULL) {
-		if (strncmp(line, "cpu", 3) != 0) break;
-		cpu_count++;
-	}
-	fclose(fd);
-	return cpu_count - 1;
-#elif defined __APPLE__
-//TODO: test sysconf(_SC_NPROCESSORS_ONLN), sysconf(_SC_NPROCESSORS_CONF)
-	if (sysctlbyname("hw.ncpu",&cpu_count,sizeof(int),NULL,0)) return 1;
-	return cpu_count;
-#endif
+	return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
