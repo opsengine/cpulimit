@@ -76,6 +76,7 @@
 
 //control time slot in microseconds
 //each slot is splitted in a working slice and a sleeping slice
+//TODO: make it adaptive, based on the actual system load
 #define TIME_SLOT 100000
 
 #define MAX_PRIORITY -10
@@ -116,7 +117,7 @@ void *memrchr(const void *s, int c, size_t n)
 int get_cpu_count()
 {
 	int cpu_count = 0;
-#ifdef __GNUC__
+#ifdef __linux__
 	FILE *fd;
 	char line[100];
 	fd = fopen("/proc/stat", "r");
@@ -164,20 +165,22 @@ void quit(int sig)
 
 void print_usage(FILE *stream, int exit_code)
 {
-	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n",program_name);
-	fprintf(stream, "   TARGET must be exactly one of these:\n");
-	fprintf(stream, "      -p, --pid=N        pid of the process (implies -z)\n");
-	fprintf(stream, "      -e, --exe=FILE     name of the executable program file or absolute path name\n");
-	fprintf(stream, "      COMMAND [ARGS]     run this command and limit it\n");
+	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
-	fprintf(stream, "      -l, --limit=N      percentage of cpu allowed from 0 to 100 (required)\n");
-	fprintf(stream, "      -v, --verbose      show control statistics\n");
-	fprintf(stream, "      -z, --lazy         exit if there is no suitable target process, or if it dies\n");
-	fprintf(stream, "      -h, --help         display this help and exit\n");
+	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*get_cpu_count());
+	fprintf(stream, "      -v, --verbose          show control statistics\n");
+	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
+	fprintf(stream, "      -i, --ignore-children  don't limit children processes\n");
+	fprintf(stream, "      -h, --help             display this help and exit\n");
+	fprintf(stream, "   TARGET must be exactly one of these:\n");
+	fprintf(stream, "      -p, --pid=N            pid of the process (implies -z)\n");
+	fprintf(stream, "      -e, --exe=FILE         name of the executable program file or path name\n");
+	fprintf(stream, "      COMMAND [ARGS]         run this command and limit it (implies -z)\n");
+	fprintf(stream, "\nReport bugs to <marlonx80@hotmail.com>.\n");
 	exit(exit_code);
 }
 
-void limit_process(pid_t pid, double limit)
+void limit_process(pid_t pid, double limit, int ignore_children)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -194,13 +197,23 @@ void limit_process(pid_t pid, double limit)
 	memset(&endwork, 0, sizeof(struct timeval));	
 	//last working time in microseconds
 	unsigned long workingtime = 0;
-	int i = 0;
+	//generic list item
+	struct list_node *node;
+	//counter
+	int c = 0;
 
 	//build the family
 	create_process_family(&pf, pid);
-	struct list_node *node;
+	if (ignore_children) {
+		//delete any process with a different pid than the father
+		for (node=pf.members.first; node!=NULL; node=node->next) {
+			struct process *proc = (struct process*)(node->data);
+			if (proc->pid != pid)
+				remove_process_from_family(&pf, proc->pid);
+		}
+	}
 	
-	if (verbose) printf("Members in the family owned by %d: %d\n", pf.father, pf.members.count);
+	if (!ignore_children && verbose) printf("Members in the family owned by %d: %d\n", pf.father, pf.members.count);
 
 	//rate at which we are keeping active the processes (range 0-1)
 	//1 means that the process are using all the twork slice
@@ -208,13 +221,10 @@ void limit_process(pid_t pid, double limit)
 
 	while(1) {
 
-		if (i%200==0 && verbose)
-			printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n");
-
-		if (i%10==0) {
+		if (!ignore_children && c%10==0) {
 			//update the process family (checks only for new members)
 			int new_children = update_process_family(&pf);
-			if (new_children) {
+			if (verbose && new_children) {
 				printf("%d new children processes detected (", new_children);
 				int j;
 				node = pf.members.last;
@@ -266,8 +276,11 @@ void limit_process(pid_t pid, double limit)
 		}
 		tsleep.tv_nsec = TIME_SLOT*1000-twork.tv_nsec;
 
-		if (verbose && i%10==0 && i>0) {
-			printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
+		if (verbose) {
+			if (c%200==0)
+				printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n");
+			if (c%10==0 && c>0)
+				printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n",pcpu*100,twork.tv_nsec/1000,tsleep.tv_nsec/1000,workingrate*100);
 		}
 
 		//resume processes
@@ -285,6 +298,12 @@ void limit_process(pid_t pid, double limit)
 		nanosleep(&twork,NULL);
 		gettimeofday(&endwork, NULL);
 		workingtime = timediff(&endwork,&startwork);
+		
+		long delay = workingtime-twork.tv_nsec/1000;
+		if (c>0 && delay>10000) {
+			//delay is too much! signal to user?
+			//fprintf(stderr, "%d %ld us\n", c, delay);
+		}
 
 		if (tsleep.tv_nsec>0) {
 			//stop only if tsleep>0, instead it's useless
@@ -299,52 +318,9 @@ void limit_process(pid_t pid, double limit)
 			//now the processes are sleeping
 			nanosleep(&tsleep,NULL);
 		}
-		i++;
+		c++;
 	}
 	cleanup_process_family(&pf);
-}
-
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE 1
-
-void daemonize(void)
-{
-    pid_t pid, sid;
-
-    /* already a daemon */
-    if ( getppid() == 1 ) return;
-
-    /* Fork off the parent process */
-    pid = fork();
-    if (pid < 0) {
-        exit(EXIT_FAILURE);
-    }
-    /* If we got a good PID, then we can exit the parent process. */
-    if (pid > 0) {
-        exit(EXIT_SUCCESS);
-    }
-
-    /* At this point we are executing as the child process */
-
-    /* Change the file mode mask */
-    umask(0);
-
-    /* Create a new SID for the child process */
-    sid = setsid();
-    if (sid < 0) {
-        exit(EXIT_FAILURE);
-    }
-
-    /* Change the current working directory.  This prevents the current
-       directory from being locked; hence not being able to remove it. */
-    if ((chdir("/")) < 0) {
-        exit(EXIT_FAILURE);
-    }
-
-    /* Redirect standard files to /dev/null */
-    freopen( "/dev/null", "r", stdin);
-    freopen( "/dev/null", "w", stdout);
-    freopen( "/dev/null", "w", stderr);
 }
 
 int main(int argc, char **argv) {
@@ -360,12 +336,13 @@ int main(int argc, char **argv) {
 	int pid_ok = 0;
 	int limit_ok = 0;
 	pid_t pid = 0;
+	int ignore_children = 0;
 
 	//parse arguments
 	int next_option;
     int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "+p:e:l:vzh";
+	const char* short_options = "+p:e:l:vzih";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL,     'p' },
@@ -373,6 +350,7 @@ int main(int argc, char **argv) {
 		{ "limit",      required_argument, NULL,     'l' },
 		{ "verbose",    no_argument,       &verbose, 'v' },
 		{ "lazy",       no_argument,       &lazy,    'z' },
+		{ "ignore-children", no_argument,  &ignore_children, 'i' },
 		{ "help",       no_argument,       NULL,     'h' },
 		{ 0,            0,                 0,         0  }
 	};
@@ -397,6 +375,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'z':
 				lazy = 1;
+				break;
+			case 'i':
+				ignore_children = 1;
 				break;
 			case 'h':
 				print_usage(stdout, 1);
@@ -465,7 +446,7 @@ int main(int argc, char **argv) {
 	else {
 		if (verbose) printf("Warning: Cannot change priority. Run as root or renice for best results.\n");
 	}
-
+	
 	if (command_mode) {
 		int i;
 		//executable file
@@ -493,10 +474,10 @@ int main(int argc, char **argv) {
 		else if (child > 0) {
 			//parent code
 //			daemonize();
-			freopen( "/dev/null", "r", stdin);
-			freopen( "/dev/null", "w", stdout);
-			freopen( "/dev/null", "w", stderr);
-			limit_process(child, limit);
+//			freopen( "/dev/null", "r", stdin);
+//			freopen( "/dev/null", "w", stdout);
+//			freopen( "/dev/null", "w", stderr);
+			limit_process(child, limit, ignore_children);
 			int status;
 			waitpid(child, &status, 0);
 			exit(status);
@@ -543,11 +524,10 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit);
+			limit_process(pid, limit, ignore_children);
 		}
 		sleep(2);
 	} while(!lazy);
 	
 	exit(0);
 }
-
