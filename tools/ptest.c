@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define N 8
+#define N 10
 
 //simple program to test cpulimit
 int main()
@@ -15,7 +15,6 @@ int main()
 	printf("Parent: PID %d\n", getpid());
 	getchar();
 	sleep(1);
-	while(1);
 	int i;
 	int children[N];
 	for (i=0;i<N;i++) {

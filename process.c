@@ -29,7 +29,7 @@
 
 int process_init(struct process_history *proc, int pid)
 {
-#ifdef __GNUC__
+#ifdef __linux__
 	//test /proc file descriptor for reading
 	sprintf(proc->stat_file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(proc->stat_file, "r");
@@ -39,7 +39,7 @@ int process_init(struct process_history *proc, int pid)
 	//init properties
 	proc->pid = pid;
 	proc->cpu_usage = 0;
-	memset(&(proc->last_sample), 0, sizeof(struct timespec));
+	memset(&(proc->last_sample), 0, sizeof(struct timeval));
 	proc->last_jiffies = -1;
 	return 0;
 }
@@ -51,7 +51,7 @@ static inline unsigned long timediff(const struct timeval *t1,const struct timev
 }
 
 static int get_jiffies(struct process_history *proc) {
-#ifdef __GNUC__
+#ifdef __linux__
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
 	fgets(proc->buffer, sizeof(proc->buffer),f);
@@ -104,7 +104,7 @@ int process_monitor(struct process_history *proc)
 		proc->cpu_usage = sample;
 	}
 	else {
-		//adaptative adjustment
+		//usage adjustment
 		proc->cpu_usage = (1-ALFA) * proc->cpu_usage + ALFA * sample;
 	}
 

@@ -27,7 +27,7 @@
 // returns pid of the parent process
 static pid_t getppid_of(pid_t pid)
 {
-#ifdef __GNUC__
+#ifdef __linux__
 	char file[20];
 	char buffer[1024];
 	sprintf(file, "/proc/%d/stat", pid);
@@ -59,7 +59,7 @@ static pid_t getppid_of(pid_t pid)
 // returns the start time of a process (used with pid to identify a process)
 static int get_starttime(pid_t pid)
 {
-#ifdef __GNUC__
+#ifdef __linux__
 	char file[20];
 	char buffer[1024];
 	sprintf(file, "/proc/%d/stat", pid);
@@ -89,7 +89,7 @@ static int get_starttime(pid_t pid)
 // detects whether a process is a kernel thread or not
 static int is_kernel_thread(pid_t pid)
 {
-#ifdef __GNUC__
+#ifdef __linux__
 	static char statfile[20];
 	static char buffer[64];
 	int ret;
@@ -107,7 +107,7 @@ static int is_kernel_thread(pid_t pid)
 
 // returns 1 if pid is a user process, 0 otherwise
 static int process_exists(pid_t pid) {
-#ifdef __GNUC__
+#ifdef __linux__
 	static char statfile[20];
 	static char buffer[64];
 	int ret;
@@ -187,7 +187,7 @@ static int is_member(struct process_family *f, pid_t pid) {
 
 // creates an object that browse all running processes
 static int init_process_iterator(struct process_iterator *i) {
-#ifdef __GNUC__
+#ifdef __linux__
 	//open a directory stream to /proc directory
 	if ((i->dip = opendir("/proc")) == NULL) {
 		perror("opendir");
@@ -204,7 +204,8 @@ static int init_process_iterator(struct process_iterator *i) {
 // automatic closing if the end of the list is reached
 static int read_next_process(struct process_iterator *i) {
 	pid_t pid = 0;
-#ifdef __GNUC__
+#ifdef __linux__
+//TODO read this to port to other systems: http://www.steve.org.uk/Reference/Unix/faq_8.html#SEC85
 	//read in from /proc and seek for process dirs
 	while ((i->dit = readdir(i->dip)) != NULL) {
 		pid = atoi(i->dit->d_name);
@@ -365,7 +366,7 @@ void cleanup_process_family(struct process_family *f)
 int look_for_process_by_pid(pid_t pid)
 {
 	if (process_exists(pid))
-		return (kill(pid,SIGCONT)==0) ? pid : -pid;
+		return (kill(pid,0)==0) ? pid : -pid;
 	return 0;
 }
 
@@ -398,7 +399,7 @@ int look_for_process_by_name(const char *process_name)
 	info.processName = (char*)malloc(64*sizeof(char));
 #endif
 	while ((pid = read_next_process(&iter))) {
-#ifdef __GNUC__
+#ifdef __linux__
 		//read the executable link
 		sprintf(exelink,"/proc/%d/exe",pid);
 		int size = readlink(exelink, exepath, sizeof(exepath));

@@ -72,7 +72,7 @@ struct process {
 
 // object to enumerate running processes
 struct process_iterator {
-#ifdef __GNUC__
+#ifdef __linux__
 	DIR *dip;
 	struct dirent *dit;
 #elif defined __APPLE__
