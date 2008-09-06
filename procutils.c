@@ -354,7 +354,7 @@ int look_for_process_by_name(const char *process_name)
 	ProcessSerialNumber psn;
 	ProcessInfoRec info;
 	memset(&info, 0, sizeof(ProcessInfoRec));
-	info_child.processInfoLength = sizeof(ProcessInfoRec);
+	info.processInfoLength = sizeof(ProcessInfoRec);
 	info.processName = (char*)malloc(64*sizeof(char));
 #endif
 	while ((pid = read_next_process(&iter))) {
