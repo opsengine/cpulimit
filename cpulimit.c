@@ -68,10 +68,10 @@
 
 //some useful macro
 #ifndef MIN
-#define MIN(a,b) (a<b?a:b)
+#define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 #ifndef MAX
-#define MAX(a,b) (a>b?a:b)
+#define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
 //control time slot in microseconds
@@ -81,9 +81,6 @@
 
 #define MAX_PRIORITY -10
 
-//how many cpu do we have?
-#define NCPU (sysconf(_SC_NPROCESSORS_ONLN))
-
 /* GLOBAL VARIABLES */
 
 //the "family"
@@ -92,6 +89,9 @@ struct process_family pf;
 pid_t cpulimit_pid;
 //name of this program (maybe cpulimit...)
 char *program_name;
+
+//number of cpu
+int NCPU;
 
 /* CONFIGURATION VARIABLES */
 
@@ -144,7 +144,7 @@ static void print_usage(FILE *stream, int exit_code)
 {
 	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
-	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %ld (required)\n", 100*NCPU);
+	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
 	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
 	fprintf(stream, "      -i, --ignore-children  don't limit children processes\n");
@@ -170,6 +170,19 @@ static void increase_priority() {
 	else {
 		if (verbose) printf("Warning: Cannot change priority. Run as root or renice for best results.\n");
 	}
+}
+
+/* Get the number of CPUs */
+static int get_ncpu() {
+	int ncpu = -1;
+#ifdef _SC_NPROCESSORS_ONLN
+	ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined __APPLE__
+	int mib[2] = {CTL_HW, HW_NCPU};
+	size_t len = sizeof(ncpu);
+	sysctl(mib, 2, &ncpu, &len, NULL, 0);
+#endif
+	return ncpu;
 }
 
 void limit_process(pid_t pid, double limit, int ignore_children)
@@ -323,11 +336,6 @@ void limit_process(pid_t pid, double limit, int ignore_children)
 }
 
 int main(int argc, char **argv) {
-	//get program name
-	char *p=(char*)memrchr(argv[0],(unsigned int)'/',strlen(argv[0]));
-	program_name = p==NULL?argv[0]:(p+1);
-	cpulimit_pid = getpid();
-
 	//argument variables
 	const char *exe = NULL;
 	int perclimit = 0;
@@ -336,6 +344,14 @@ int main(int argc, char **argv) {
 	int limit_ok = 0;
 	pid_t pid = 0;
 	int ignore_children = 0;
+
+	//get program name
+	char *p=(char*)memrchr(argv[0],(unsigned int)'/',strlen(argv[0]));
+	program_name = p==NULL?argv[0]:(p+1);
+	//get current pid
+	cpulimit_pid = getpid();
+	//get cpu count
+	NCPU = get_ncpu();
 
 	//parse arguments
 	int next_option;
@@ -407,7 +423,7 @@ int main(int argc, char **argv) {
 	}
 	double limit = perclimit/100.0;
 	if (limit<0 || limit >NCPU) {
-		fprintf(stderr,"Error: limit must be in the range 0-%ld00\n", NCPU);
+		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", NCPU);
 		print_usage(stderr, 1);
 		exit(1);
 	}
@@ -430,7 +446,7 @@ int main(int argc, char **argv) {
 	signal(SIGTERM, quit);
 
 	//print the number of available cpu
-	if (verbose) printf("%ld cpu detected\n", NCPU);
+	if (verbose) printf("%d cpu detected\n", NCPU);
 
 	if (command_mode) {
 		int i;
