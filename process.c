@@ -27,30 +27,37 @@
 #include <Carbon/Carbon.h>
 #endif
 
-int process_init(struct process_history *proc, int pid)
+// returns the start time of a process (used with pid to identify a process)
+static int get_starttime(pid_t pid)
 {
 #ifdef __linux__
-	//test /proc file descriptor for reading
-	sprintf(proc->stat_file, "/proc/%d/stat", pid);
-	FILE *fd = fopen(proc->stat_file, "r");
-	if (fd == NULL) return 1;
+	char file[20];
+	char buffer[1024];
+	sprintf(file, "/proc/%d/stat", pid);
+	FILE *fd = fopen(file, "r");
+		if (fd==NULL) return -1;
+	fgets(buffer, sizeof(buffer), fd);
 	fclose(fd);
+	char *p = buffer;
+	p = memchr(p+1,')', sizeof(buffer) - (p-buffer));
+	int sp = 20;
+	while (sp--)
+		p = memchr(p+1,' ',sizeof(buffer) - (p-buffer));
+	//start time of the process
+	int time = atoi(p+1);
+	return time;
+#elif defined __APPLE__
+	ProcessSerialNumber psn;
+	ProcessInfoRec info;
+	memset(&info, 0, sizeof(ProcessInfoRec));
+	info.processInfoLength = sizeof(ProcessInfoRec);
+	if (GetProcessForPID(pid, &psn)) return -1;
+	if (GetProcessInformation(&psn, &info)) return -1;
+	return info.processLaunchDate;
 #endif
-	//init properties
-	proc->pid = pid;
-	proc->cpu_usage = 0;
-	memset(&(proc->last_sample), 0, sizeof(struct timeval));
-	proc->last_jiffies = -1;
-	return 0;
 }
 
-//return t1-t2 in microseconds (no overflow checks, so better watch out!)
-static inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
-{
-	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
-}
-
-static int get_jiffies(struct process_history *proc) {
+static int get_jiffies(struct process *proc) {
 #ifdef __linux__
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
@@ -76,10 +83,42 @@ static int get_jiffies(struct process_history *proc) {
 #endif
 }
 
+//return t1-t2 in microseconds (no overflow checks, so better watch out!)
+static inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
+{
+	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
+}
+
+/*static int*/ int process_update(struct process *proc) {
+	//TODO: get any process statistic here
+	//check that starttime is not changed(?), update jiffies, parent, zombie status
+	return 0;
+}
+
+int process_init(struct process *proc, int pid)
+{
+	//general members
+	proc->pid = pid;
+	proc->starttime = get_starttime(pid);
+	proc->cpu_usage = 0;
+	memset(&(proc->last_sample), 0, sizeof(struct timeval));
+	proc->last_jiffies = -1;
+	//system dependent members
+#ifdef __linux__
+//TODO: delete these members for the sake of portability?
+	//test /proc file descriptor for reading
+	sprintf(proc->stat_file, "/proc/%d/stat", pid);
+	FILE *fd = fopen(proc->stat_file, "r");
+	if (fd == NULL) return 1;
+	fclose(fd);
+#endif
+	return 0;
+}
+
 //parameter in range 0-1
 #define ALFA 0.08
 
-int process_monitor(struct process_history *proc)
+int process_monitor(struct process *proc)
 {
 	int j = get_jiffies(proc);
 	if (j<0) return -1; //error retrieving jiffies count (maybe the process is dead)
@@ -116,7 +155,7 @@ int process_monitor(struct process_history *proc)
 	return 0;
 }
 
-int process_close(struct process_history *proc)
+int process_close(struct process *proc)
 {
 	if (kill(proc->pid,SIGCONT)!=0) {
 		fprintf(stderr,"Process %d is already dead!\n", proc->pid);

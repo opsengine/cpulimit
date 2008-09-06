@@ -56,36 +56,6 @@ static pid_t getppid_of(pid_t pid)
 #endif
 }
 
-// returns the start time of a process (used with pid to identify a process)
-static int get_starttime(pid_t pid)
-{
-#ifdef __linux__
-	char file[20];
-	char buffer[1024];
-	sprintf(file, "/proc/%d/stat", pid);
-	FILE *fd = fopen(file, "r");
-		if (fd==NULL) return -1;
-	fgets(buffer, sizeof(buffer), fd);
-	fclose(fd);
-	char *p = buffer;
-	p = memchr(p+1,')', sizeof(buffer) - (p-buffer));
-	int sp = 20;
-	while (sp--)
-		p = memchr(p+1,' ',sizeof(buffer) - (p-buffer));
-	//start time of the process
-	int time = atoi(p+1);
-	return time;
-#elif defined __APPLE__
-	ProcessSerialNumber psn;
-	ProcessInfoRec info;
-	memset(&info, 0, sizeof(ProcessInfoRec));
-	info.processInfoLength = sizeof(ProcessInfoRec);
-	if (GetProcessForPID(pid, &psn)) return -1;
-	if (GetProcessInformation(&psn, &info)) return -1;
-	return info.processLaunchDate;
-#endif
-}
-
 // detects whether a process is a kernel thread or not
 static int is_kernel_thread(pid_t pid)
 {
@@ -129,7 +99,7 @@ static int process_exists(pid_t pid) {
 static int hash_process(struct process_family *f, struct process *p)
 {
 	int ret;
-	struct list **l = &(f->hashtable[pid_hashfn(p->pid)]);
+	struct list **l = &(f->proctable[pid_hashfn(p->pid)]);
 	if (*l == NULL) {
 		//there is no process in this hashtable item
 		//allocate the list
@@ -161,7 +131,7 @@ static int hash_process(struct process_family *f, struct process *p)
 
 static void unhash_process(struct process_family *f, pid_t pid) {
 	//remove process from hashtable
-	struct list **l = &(f->hashtable[pid_hashfn(pid)]);
+	struct list **l = &(f->proctable[pid_hashfn(pid)]);
 	if (*l == NULL)
 		return; //nothing done
 	struct list_node *node = locate_node(*l, &pid);
@@ -172,16 +142,9 @@ static void unhash_process(struct process_family *f, pid_t pid) {
 
 static struct process *seek_process(struct process_family *f, pid_t pid)
 {
-	struct list **l = &(f->hashtable[pid_hashfn(pid)]);
+	struct list **l = &(f->proctable[pid_hashfn(pid)]);
 	return (*l != NULL) ? (struct process*)locate_elem(*l, &pid) : NULL;
 }
-
-/*
-static int is_member(struct process_family *f, pid_t pid) {
-	struct process *p = seek_process(f, pid);
-	return (p!=NULL && p->member);
-}
-*/
 
 /* PROCESS ITERATOR STUFF */
 
@@ -202,14 +165,16 @@ static int init_process_iterator(struct process_iterator *i) {
 
 // reads the next user process from /process
 // automatic closing if the end of the list is reached
-static int read_next_process(struct process_iterator *i) {
+static pid_t read_next_process(struct process_iterator *i) {
 	pid_t pid = 0;
 #ifdef __linux__
 //TODO read this to port to other systems: http://www.steve.org.uk/Reference/Unix/faq_8.html#SEC85
 	//read in from /proc and seek for process dirs
 	while ((i->dit = readdir(i->dip)) != NULL) {
+		if( strtok(i->dit->d_name, "0123456789") != NULL )
+			continue;
 		pid = atoi(i->dit->d_name);
-		if (pid<=0 || is_kernel_thread(pid))
+		if (is_kernel_thread(pid))
 			continue;
 		//return the first found process
 		break;
@@ -230,14 +195,14 @@ static int read_next_process(struct process_iterator *i) {
 
 /* PUBLIC FUNCTIONS */
 
-// searches for all the processes derived from father and stores them
+// search for all the processes derived from father and stores them
 // in the process family struct
 int create_process_family(struct process_family *f, pid_t father)
 {
 	//process list initialization (4 bytes key)
 	init_list(&(f->members), 4);
 	//hashtable initialization
-	memset(&(f->hashtable), 0, sizeof(f->hashtable));
+	memset(&(f->proctable), 0, sizeof(f->proctable));
 	f->count = 0;
 	f->father = father;
 	//process iterator
@@ -251,10 +216,10 @@ int create_process_family(struct process_family *f, pid_t father)
 		while(ppid!=1 && ppid!=father) {
 			ppid = getppid_of(ppid);
 		}
-		//allocate and insert the process
+		//allocate process descriptor
 		struct process *p = malloc(sizeof(struct process));
-		p->pid = pid;
-		p->starttime = get_starttime(pid);
+		//init process
+		process_init(p, pid);
 		if (ppid==1) {
 			//the init process
 			p->member = 0;
@@ -264,9 +229,6 @@ int create_process_family(struct process_family *f, pid_t father)
 			p->member = 1;
 			add_elem(&(f->members), p);
 		}
-		//init history
-		p->history = malloc(sizeof(struct process_history));
-		process_init(p->history, pid);
 		//add to hashtable
 		hash_process(f, p);
 	}
@@ -300,8 +262,8 @@ int update_process_family(struct process_family *f)
 		}
 		//allocate and insert the process
 		struct process *p = malloc(sizeof(struct process));
-		p->pid = pid;
-		p->starttime = get_starttime(pid);
+		//init process
+		process_init(p, pid);
 		if (ancestor->member) {
 			//add to members
 			p->member = 1;
@@ -312,9 +274,6 @@ int update_process_family(struct process_family *f)
 			//not a member
 			p->member = 0;
 		}
-		//init history
-		p->history = malloc(sizeof(struct process_history));
-		process_init(p->history, pid);
 		//add to hashtable
 		hash_process(f, p);
 	}
@@ -326,9 +285,9 @@ void remove_process_from_family(struct process_family *f, pid_t pid)
 {
 	struct list_node *node = locate_node(&(f->members), &pid);
 	if (node != NULL) {
-		struct process *p = (struct process*)(node->data);
-		free(p->history);
-		p->history = NULL;
+//		struct process *p = (struct process*)(node->data);
+//		free(p->history);
+//		p->history = NULL;
 		delete_node(&(f->members), node);
 	}
 	unhash_process(f, pid);
@@ -338,19 +297,19 @@ void remove_process_from_family(struct process_family *f, pid_t pid)
 void cleanup_process_family(struct process_family *f)
 {
 	int i;
-	int size = sizeof(f->hashtable) / sizeof(struct process*);
+	int size = sizeof(f->proctable) / sizeof(struct process*);
 	for (i=0; i<size; i++) {
-		if (f->hashtable[i] != NULL) {
+		if (f->proctable[i] != NULL) {
 			//free() history for each process
 			struct list_node *node = NULL;
-			for (node=f->hashtable[i]->first; node!=NULL; node=node->next) {
-				struct process *p = (struct process*)(node->data);
-				free(p->history);
-				p->history = NULL;
+			for (node=f->proctable[i]->first; node!=NULL; node=node->next) {
+//				struct process *p = (struct process*)(node->data);
+//				free(p->history);
+//				p->history = NULL;
 			}
-			destroy_list(f->hashtable[i]);
-			free(f->hashtable[i]);
-			f->hashtable[i] = NULL;
+			destroy_list(f->proctable[i]);
+			free(f->proctable[i]);
+			f->proctable[i] = NULL;
 		}
 	}
 	flush_list(&(f->members));
@@ -399,16 +358,17 @@ int look_for_process_by_name(const char *process_name)
 	info.processName = (char*)malloc(64*sizeof(char));
 #endif
 	while ((pid = read_next_process(&iter))) {
+		int size = 0;
 #ifdef __linux__
 		//read the executable link
 		sprintf(exelink,"/proc/%d/exe",pid);
-		int size = readlink(exelink, exepath, sizeof(exepath));
+		size = readlink(exelink, exepath, sizeof(exepath));
 		exepath[size] = '\0';
 #elif defined __APPLE__
 		//get the executable file name
 		if (GetProcessForPID(pid, &psn)) return -1;
 		if (GetProcessInformation(&psn, &info)) return -1;
-		int size = strlen(info.processName);
+		size = strlen(info.processName);
 		strcpy(exepath, info.processName);
 #endif
 		if (size>0) {

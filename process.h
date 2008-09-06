@@ -53,30 +53,39 @@
 # endif
 #endif
 
-
-//process descriptor
-struct process_history {
-	//the PID of the process
+// process descriptor
+struct process {
+	//pid of the process
 	pid_t pid;
-	//timestamp when last_j and cpu_usage was calculated
-	struct timeval last_sample;
+	//start time
+	int starttime;
+	//is member of the family?
+	int member; //TODO: delete this field
 	//total number of jiffies used by the process at time last_sample
 	int last_jiffies;
-	//cpu usage estimation (value in range 0-1)
+	//timestamp when last_jiffies and cpu_usage was calculated
+	struct timeval last_sample;
+	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
+	//1 if the process is zombie
+	int is_zombie;
+
+	//system-dependent members
+//TODO: delete these members for the sake of portability?
 #ifdef __linux__
 	//preallocate buffers for performance
 	//name of /proc/PID/stat file
 	char stat_file[20];
 	//read buffer for /proc filesystem
 	char buffer[1024];
-#endif
+#endif	
 };
 
-int process_init(struct process_history *proc, pid_t pid);
 
-int process_monitor(struct process_history *proc);
+int process_init(struct process *proc, pid_t pid);
 
-int process_close(struct process_history *proc);
+int process_monitor(struct process *proc);
+
+int process_close(struct process *proc);
 
 #endif

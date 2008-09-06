@@ -31,15 +31,12 @@
 #include <dirent.h>
 #include <string.h>
 #include <limits.h>
+
 #include "list.h"
 #include "process.h"
 
 #ifdef __APPLE__
 #include <Carbon/Carbon.h>
-#endif
-
-#ifndef PATH_MAX
-#define PATH_MAX 4096
 #endif
 
 #define PIDHASH_SZ 1024
@@ -54,20 +51,16 @@ struct process_family {
 	struct list members;
 	//non-members list
 	//hashtable with all the processes (array of struct list of struct process)
-	struct list *hashtable[PIDHASH_SZ];
+	struct list *proctable[PIDHASH_SZ];
 	//total process count
 	int count;
 };
 
-// process descriptor
-struct process {
-	//pid of the process
-	pid_t pid;
-	//start time
-	int starttime;
-	//is member of the family?
+//TODO: use this object in proctable and delete member in struct process
+struct table_item {
+	struct process *proc;
+	//1 if the process is a member of the family
 	int member;
-	struct process_history *history;
 };
 
 // object to enumerate running processes
@@ -97,7 +90,7 @@ void cleanup_process_family(struct process_family *f);
 
 // searches a process given the name of the executable file, or its absolute path
 // returns the pid, or 0 if it's not found
-int look_for_process_by_name(const char *process);
+int look_for_process_by_name(const char *process_name);
 
 // searches a process given its pid
 // returns the pid, or 0 if it's not found
