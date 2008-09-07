@@ -43,7 +43,6 @@
  *
  */
 
-
 #include <getopt.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -184,6 +183,24 @@ static int get_ncpu() {
 #endif
 	return ncpu;
 }
+
+#ifdef __linux__
+int check_proc() {
+	char buffer[1024];
+	char dev[32];
+	char point[32];
+	int found = 0;
+	FILE *fd = fopen("/etc/mtab", "r");
+	while(fgets(buffer, sizeof(buffer), fd) > 0) {
+		if (strncmp(buffer, "proc ", 5)!=0) continue;
+		sscanf(buffer, "%s %s", dev, point);
+		found = 1;
+		break;
+	}
+	fclose(fd);
+	return found;
+}
+#endif
 
 void limit_process(pid_t pid, double limit, int ignore_children)
 {
@@ -360,14 +377,14 @@ int main(int argc, char **argv) {
 	const char* short_options = "+p:e:l:vzih";
 	//An array describing valid long options
 	const struct option long_options[] = {
-		{ "pid",        required_argument, NULL,     'p' },
-		{ "exe",        required_argument, NULL,     'e' },
-		{ "limit",      required_argument, NULL,     'l' },
-		{ "verbose",    no_argument,       &verbose, 'v' },
-		{ "lazy",       no_argument,       &lazy,    'z' },
-		{ "ignore-children", no_argument,  &ignore_children, 'i' },
-		{ "help",       no_argument,       NULL,     'h' },
-		{ 0,            0,                 0,         0  }
+		{ "pid",        required_argument, NULL, 'p' },
+		{ "exe",        required_argument, NULL, 'e' },
+		{ "limit",      required_argument, NULL, 'l' },
+		{ "verbose",    no_argument,       NULL, 'v' },
+		{ "lazy",       no_argument,       NULL, 'z' },
+		{ "ignore-children", no_argument,  NULL, 'i' },
+		{ "help",       no_argument,       NULL, 'h' },
+		{ 0,            0,                 0,     0  }
 	};
 
 	do {
@@ -448,6 +465,13 @@ int main(int argc, char **argv) {
 	//print the number of available cpu
 	if (verbose) printf("%d cpu detected\n", NCPU);
 
+#ifdef __linux__
+	if (!check_proc()) {
+		fprintf(stderr, "procfs is not mounted!\nAborting\n");
+		exit(-2);
+	}
+#endif
+
 	if (command_mode) {
 		int i;
 		//executable file
@@ -492,7 +516,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	do {
+	while(1) {
 		//look for the target process..or wait for it
 		pid_t ret = 0;
 		if (pid_ok) {
@@ -527,8 +551,9 @@ int main(int argc, char **argv) {
 			//control
 			limit_process(pid, limit, ignore_children);
 		}
+		if (lazy) break;
 		sleep(2);
-	} while(!lazy);
+	};
 	
 	exit(0);
 }
