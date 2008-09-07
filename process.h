@@ -31,11 +31,10 @@
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <sys/utsname.h>
+#include <limits.h>
 
-//kernel time resolution timer interrupt frequency in Hertz
-//#define HZ sysconf(_SC_CLK_TCK)
-
-//HZ detection, from openssl code
+//USER_HZ detection, from openssl code
 #ifndef HZ
 # if defined(_SC_CLK_TCK) \
      && (!defined(OPENSSL_SYS_VMS) || __CTRL_VER >= 70000000)
@@ -57,6 +56,8 @@
 struct process {
 	//pid of the process
 	pid_t pid;
+	//pid of the process
+	pid_t ppid;
 	//start time
 	int starttime;
 	//is member of the family?
@@ -69,6 +70,8 @@ struct process {
 	double cpu_usage;
 	//1 if the process is zombie
 	int is_zombie;
+	//absolute path of the executable file
+	char command[PATH_MAX+1];
 
 	//system-dependent members
 //TODO: delete these members for the sake of portability?

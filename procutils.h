@@ -36,7 +36,7 @@
 #include "process.h"
 
 #ifdef __APPLE__
-#include <Carbon/Carbon.h>
+#include <kvm.h>
 #endif
 
 #define PIDHASH_SZ 1024
@@ -69,8 +69,12 @@ struct process_iterator {
 	DIR *dip;
 	struct dirent *dit;
 #elif defined __APPLE__
-	ProcessSerialNumber psn;
+	kvm_t *kp;
+	struct kinfo_proc *proc;
+	int count;
+	int c;
 #endif
+	struct process *current;
 };
 
 // searches for all the processes derived from father and stores them

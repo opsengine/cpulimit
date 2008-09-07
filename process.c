@@ -23,8 +23,11 @@
 
 #include "process.h"
 
+#include <fcntl.h>
+
 #ifdef __APPLE__
-#include <Carbon/Carbon.h>
+#include <kvm.h>
+#include <sys/sysctl.h>
 #endif
 
 // returns the start time of a process (used with pid to identify a process)
@@ -47,13 +50,15 @@ static int get_starttime(pid_t pid)
 	int time = atoi(p+1);
 	return time;
 #elif defined __APPLE__
-	ProcessSerialNumber psn;
-	ProcessInfoRec info;
-	memset(&info, 0, sizeof(ProcessInfoRec));
-	info.processInfoLength = sizeof(ProcessInfoRec);
-	if (GetProcessForPID(pid, &psn)) return -1;
-	if (GetProcessInformation(&psn, &info)) return -1;
-	return info.processLaunchDate;
+	int count;
+	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
+	if (kp) return -1;
+	struct kinfo_proc *proc = kvm_getprocs(kp, KERN_PROC_PID, pid, &count);
+	if (!proc) return -2;
+	//return only seconds
+	int ret = proc->kp_proc.p_starttime.tv_sec;
+	kvm_close(kp);
+	return ret;
 #endif
 }
 
@@ -75,11 +80,15 @@ static int get_jiffies(struct process *proc) {
 	int ktime = atoi(p+1);
 	return utime+ktime;
 #elif defined __APPLE__
-	ProcessSerialNumber psn;
-	ProcessInfoRec info;
-	if (GetProcessForPID(proc->pid, &psn)) return -1;
-	if (GetProcessInformation(&psn, &info)) return -1;
-	return info.processActiveTime;
+	int count;
+	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
+	if (kp) return -1;
+	struct kinfo_proc *kproc = kvm_getprocs(kp, KERN_PROC_PID, proc->pid, &count);
+	if (!kproc) return -2;
+	//return only seconds
+	int ret = kproc->kp_proc.p_starttime.tv_sec;
+	kvm_close(kp);
+	return ret;
 #endif
 }
 
