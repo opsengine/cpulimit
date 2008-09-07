@@ -2,7 +2,6 @@ CC?=gcc
 CFLAGS?=-Wall -O2 -DPOSIXLY_CORRECT
 TARGETS=cpulimit
 LIBS=process.o procutils.o list.o
-OSXFLAGS=-framework Carbon
 
 all::	$(TARGETS)
 
