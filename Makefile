@@ -4,10 +4,6 @@ TARGETS=cpulimit
 LIBS=process.o procutils.o list.o
 OSXFLAGS=-framework Carbon
 
-ifeq ($(OS), APPLE)
-CFLAGS+=-framework Carbon
-endif
-
 all::	$(TARGETS)
 
 cpulimit:	cpulimit.c $(LIBS)
