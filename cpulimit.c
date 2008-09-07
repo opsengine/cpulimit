@@ -185,20 +185,17 @@ static int get_ncpu() {
 }
 
 #ifdef __linux__
-int check_proc() {
-	char buffer[1024];
-	char dev[32];
-	char point[32];
-	int found = 0;
-	FILE *fd = fopen("/etc/mtab", "r");
-	while(fgets(buffer, sizeof(buffer), fd) > 0) {
-		if (strncmp(buffer, "proc ", 5)!=0) continue;
-		sscanf(buffer, "%s %s", dev, point);
-		found = 1;
-		break;
-	}
-	fclose(fd);
-	return found;
+
+#include <sys/vfs.h>
+
+static int check_proc()
+{
+	struct statfs mnt;
+	if (statfs("/proc", &mnt) < 0)
+		return 0;
+	if (mnt.f_type!=0x9fa0)
+		return 0;
+	return 1;
 }
 #endif
 
