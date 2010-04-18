@@ -26,8 +26,8 @@
 #include "sys/stat.h"
 
 #ifdef __APPLE__
-#include <kvm.h>
 #include <sys/sysctl.h>
+#include <errno.h>
 #endif
 
 /* PROCESS STATISTICS FUNCTIONS */
@@ -42,7 +42,7 @@ static pid_t getppid_of(pid_t pid)
 	sprintf(file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(file, "r");
 		if (fd==NULL) return -1;
-	fgets(buffer, sizeof(buffer), fd);
+	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -1;
 	fclose(fd);
 	char *p = buffer;
 	p = memchr(p+1,')', sizeof(buffer) - (p-buffer));
@@ -53,14 +53,9 @@ static pid_t getppid_of(pid_t pid)
 	pid_t ppid = atoi(p+1);
 	return ppid;
 #elif defined __APPLE__
-	int count;
-	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
-	if (kp) return -1;
-	struct kinfo_proc *proc = kvm_getprocs(kp, KERN_PROC_PID, pid, &count);
-	if (!proc) return -2;
-	int ppid = proc->kp_eproc.e_ppid;
-	kvm_close(kp);
-	return ppid;
+	struct process p;
+	get_proc_info(&p, pid);
+	return p.ppid;
 #endif
 }
 
@@ -74,7 +69,7 @@ static int is_kernel_thread(pid_t pid)
 	sprintf(statfile, "/proc/%d/statm", pid);
 	FILE *fd = fopen(statfile, "r");
 	if (fd==NULL) return -1;
-	fgets(buffer, sizeof(buffer), fd);
+	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -1;
 	ret = strncmp(buffer,"0 0 0",3)==0;
 	fclose(fd);
 	return ret;
@@ -82,7 +77,7 @@ static int is_kernel_thread(pid_t pid)
 #endif
 
 //deprecated
-// returns 1 if pid is a user process, 0 otherwise
+// returns 1 if pid is an existing pid, 0 otherwise
 static int process_exists(pid_t pid) {
 #ifdef __linux__
 	static char procdir[20];
@@ -90,43 +85,10 @@ static int process_exists(pid_t pid) {
 	sprintf(procdir, "/proc/%d", pid);
 	return stat(procdir, &procstat)==0;
 #elif defined __APPLE__
-	int count;
-	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
-	if (kp) return -1;
-	struct kinfo_proc *proc = kvm_getprocs(kp, KERN_PROC_PID, pid, &count);
-	if (!proc) return -2;
-	kvm_close(kp);
-	return count;
+	struct process p;
+	return get_proc_info(&p, pid)==0;
 #endif
 }
-
-#ifdef __linuxblabla__
-int get_proc_stat(struct process *p, pid_t pid) {
-	static char statfile[20];
-	static char buffer[64];
-	int ret;
-	sprintf(statfile, "/proc/%d/stat", pid);
-	FILE *fd = fopen(statfile, "r");
-	if (fd==NULL) return -1;
-	fgets(buffer, sizeof(buffer), fd);
-	fclose(fd);
-
-	char state;
-
-    int n = sscanf(buffer, "%d %s %c %d %d %d %d %d "
-		"%lu %lu %lu %lu %lu %lu %lu "
-		"%ld %ld %ld %ld %ld %ld "
-		"%lu ",
-		&p->pid,
-		&p->command,
-		&state,
-		NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-		&utime,&stime,&cutime,&cstime,
-		NULL,NULL,NULL,NULL,
-		&starttime,
-	);
-}
-#endif
 
 /* PID HASH FUNCTIONS */
 
@@ -191,11 +153,37 @@ int init_process_iterator(struct process_iterator *i) {
 		return -1;
 	}
 #elif defined __APPLE__
-	i->kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
-	if (!i->kp) return -1;
-	i->proc = kvm_getprocs(i->kp, KERN_PROC_ALL, 0, &i->count);
-	if (!i->proc) return -2;
+
+	int err;
+	struct kinfo_proc *result = NULL;
+	size_t length;
+	int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
+
+	/* We start by calling sysctl with result == NULL and length == 0.
+	   That will succeed, and set length to the appropriate length.
+	   We then allocate a buffer of that size and call sysctl again
+	   with that buffer.
+	*/
+	length = 0;
+	err = sysctl(mib, 4, NULL, &length, NULL, 0);
+	if (err == -1) {
+		err = errno;
+	}
+	if (err == 0) {
+		result = malloc(length);
+		err = sysctl(mib, 4, result, &length, NULL, 0);
+		if (err == -1)
+			err = errno;
+		if (err == ENOMEM) {
+			free(result); /* clean up */
+			result = NULL;
+		}
+	}
+
+	i->procList = result;
+	i->count = err == 0 ? length / sizeof *result : 0;
 	i->c = 0;
+
 #endif
 	i->current = malloc(sizeof(struct process));
 	memset(i->current, 0, sizeof(struct process));
@@ -230,26 +218,24 @@ int read_next_process(struct process_iterator *i) {
 	sprintf(statfile,"/proc/%d/cmdline",pid);
 	FILE *fd = fopen(statfile, "r");
 	char buffer[1024];
-	fgets(buffer, sizeof(buffer), fd);
+	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -2;
 	fclose(fd);
 	sscanf(buffer, "%s", (char*)&i->current->command);
 	i->current->pid = pid;
 	
 #elif defined __APPLE__
-printf("%d di %d\n", i->c, i->count);
-	if (!i->kp || !i->proc) return 0;
 	if (i->c >= i->count) {
 		//no more processes
-		kvm_close(i->kp);
-		i->kp = NULL;
-		i->proc = NULL;
+		free(i->procList);
+		i->procList = NULL;
 		free(i->current);
 		i->current = NULL;
 		return -1;
 	}
-	i->current->pid = i->proc[i->c].kp_proc.p_pid;
-	strncpy(i->current->command, i->proc[i->c].kp_proc.p_comm, MAXCOMLEN);
-printf("%d %d %s\n", i->c, i->current->pid, i->proc[i->c].kp_proc.p_comm);
+	i->current->pid = i->procList[i->c].kp_proc.p_pid;
+	strncpy(i->current->command, i->procList[i->c].kp_proc.p_comm, MAXCOMLEN);
+printf("%d %d %s\n", i->c, i->current->pid, i->current->command);//i->procList[i->c].kp_proc.p_comm);
+//printf("%d %d %s\n", i->c, i->current->pid, i->proc[i->c].kp_proc.p_comm);
 	i->c++;
 #endif
 	return 0;

@@ -84,6 +84,7 @@ struct process {
 #endif	
 };
 
+int get_proc_info(struct process *p, pid_t pid);
 
 int process_init(struct process *proc, pid_t pid);
 

@@ -35,10 +35,6 @@
 #include "list.h"
 #include "process.h"
 
-#ifdef __APPLE__
-#include <kvm.h>
-#endif
-
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
 
@@ -69,8 +65,7 @@ struct process_iterator {
 	DIR *dip;
 	struct dirent *dit;
 #elif defined __APPLE__
-	kvm_t *kp;
-	struct kinfo_proc *proc;
+	struct kinfo_proc *procList;
 	int count;
 	int c;
 #endif

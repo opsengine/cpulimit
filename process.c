@@ -26,8 +26,73 @@
 #include <fcntl.h>
 
 #ifdef __APPLE__
-#include <kvm.h>
 #include <sys/sysctl.h>
+#include <errno.h>
+#endif
+
+#ifdef __linux__
+int get_proc_info(struct process *p, pid_t pid) {
+/*	static char statfile[20];
+	static char buffer[64];
+	int ret;
+	sprintf(statfile, "/proc/%d/stat", pid);
+	FILE *fd = fopen(statfile, "r");
+	if (fd==NULL) return -1;
+	fgets(buffer, sizeof(buffer), fd);
+	fclose(fd);
+
+	char state;
+
+    int n = sscanf(buffer, "%d %s %c %d %d %d %d %d "
+		"%lu %lu %lu %lu %lu %lu %lu "
+		"%ld %ld %ld %ld %ld %ld "
+		"%lu ",
+		&p->pid,
+		&p->command,
+		&state,
+		NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+		&utime,&stime,&cutime,&cstime,
+		NULL,NULL,NULL,NULL,
+		&starttime,
+	);*/
+	return 0;
+}
+#elif defined __APPLE__
+int get_proc_info(struct process *p, pid_t pid) {
+	int err;
+	struct kinfo_proc *result = NULL;
+	size_t length;
+	int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+
+	/* We start by calling sysctl with result == NULL and length == 0.
+	   That will succeed, and set length to the appropriate length.
+	   We then allocate a buffer of that size and call sysctl again
+	   with that buffer.
+	*/
+	length = 0;
+	err = sysctl(mib, 4, NULL, &length, NULL, 0);
+	if (err == -1) {
+		err = errno;
+	}
+	if (err == 0) {
+		result = malloc(length);
+		err = sysctl(mib, 4, result, &length, NULL, 0);
+		if (err == -1)
+			err = errno;
+		if (err == ENOMEM) {
+			free(result); /* clean up */
+			result = NULL;
+		}
+	}
+
+	p->pid = result->kp_proc.p_pid;
+	p->ppid = result->kp_eproc.e_ppid;
+	p->starttime = result->kp_proc.p_starttime.tv_sec;
+	p->last_jiffies = result->kp_proc.p_cpticks;
+	//p_pctcpu
+
+	return 0;
+}
 #endif
 
 // returns the start time of a process (used with pid to identify a process)
@@ -39,7 +104,7 @@ static int get_starttime(pid_t pid)
 	sprintf(file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(file, "r");
 		if (fd==NULL) return -1;
-	fgets(buffer, sizeof(buffer), fd);
+	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -1;
 	fclose(fd);
 	char *p = buffer;
 	p = memchr(p+1,')', sizeof(buffer) - (p-buffer));
@@ -50,15 +115,9 @@ static int get_starttime(pid_t pid)
 	int time = atoi(p+1);
 	return time;
 #elif defined __APPLE__
-	int count;
-	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
-	if (kp) return -1;
-	struct kinfo_proc *proc = kvm_getprocs(kp, KERN_PROC_PID, pid, &count);
-	if (!proc) return -2;
-	//return only seconds
-	int ret = proc->kp_proc.p_starttime.tv_sec;
-	kvm_close(kp);
-	return ret;
+	struct process proc;
+	get_proc_info(&proc, pid);
+	return proc.starttime;
 #endif
 }
 
@@ -66,7 +125,7 @@ static int get_jiffies(struct process *proc) {
 #ifdef __linux__
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
-	fgets(proc->buffer, sizeof(proc->buffer),f);
+	if (fgets(proc->buffer, sizeof(proc->buffer),f)) return -1;
 	fclose(f);
 	char *p = proc->buffer;
 	p = memchr(p+1,')', sizeof(proc->buffer) - (p-proc->buffer));
@@ -80,15 +139,9 @@ static int get_jiffies(struct process *proc) {
 	int ktime = atoi(p+1);
 	return utime+ktime;
 #elif defined __APPLE__
-	int count;
-	kvm_t *kp = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL);
-	if (kp) return -1;
-	struct kinfo_proc *kproc = kvm_getprocs(kp, KERN_PROC_PID, proc->pid, &count);
-	if (!kproc) return -2;
-	//return only seconds
-	int ret = kproc->kp_proc.p_starttime.tv_sec;
-	kvm_close(kp);
-	return ret;
+	struct process proc2;
+	get_proc_info(&proc2, proc->pid);
+	return proc2.last_jiffies;
 #endif
 }
 

@@ -474,10 +474,11 @@ int main(int argc, char **argv) {
 		//executable file
 		const char *cmd = argv[optind];
 		//command line arguments
-		char **cmd_args = malloc((argc-optind)*sizeof(char*));
+		char **cmd_args = malloc((argc-optind+1)*sizeof(char*));
 		if (cmd_args==NULL) exit(2);
-		for (i=0; i<argc-optind-1; i++) {
-			cmd_args[i] = argv[i+optind+1];
+		cmd_args[0] = (char*)cmd;
+		for (i=1; i<argc-optind; i++) {
+			cmd_args[i] = argv[i+optind];
 		}
 		cmd_args[i] = NULL;
 
