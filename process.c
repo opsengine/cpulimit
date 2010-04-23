@@ -104,7 +104,7 @@ static int get_starttime(pid_t pid)
 	sprintf(file, "/proc/%d/stat", pid);
 	FILE *fd = fopen(file, "r");
 		if (fd==NULL) return -1;
-	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -1;
+	if (fgets(buffer, sizeof(buffer), fd) == NULL) return -1;
 	fclose(fd);
 	char *p = buffer;
 	p = memchr(p+1,')', sizeof(buffer) - (p-buffer));
@@ -125,7 +125,7 @@ static int get_jiffies(struct process *proc) {
 #ifdef __linux__
 	FILE *f = fopen(proc->stat_file, "r");
 	if (f==NULL) return -1;
-	if (fgets(proc->buffer, sizeof(proc->buffer),f)) return -1;
+	if (fgets(proc->buffer, sizeof(proc->buffer),f) == NULL) return -1;
 	fclose(f);
 	char *p = proc->buffer;
 	p = memchr(p+1,')', sizeof(proc->buffer) - (p-proc->buffer));
