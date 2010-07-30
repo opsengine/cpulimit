@@ -19,11 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "procutils.h"
-#include "sys/types.h"
-#include "sys/stat.h"
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -99,7 +106,7 @@ static int hash_process(struct process_family *f, struct process *p)
 	if (*l == NULL) {
 		//there is no process in this hashtable item
 		//allocate the list
-		*l = malloc(sizeof(struct list));
+		*l = (struct list*)malloc(sizeof(struct list));
 		init_list(*l, 4);
 		add_elem(*l, p);
 		ret = 0;
@@ -185,7 +192,7 @@ int init_process_iterator(struct process_iterator *i) {
 	i->c = 0;
 
 #endif
-	i->current = malloc(sizeof(struct process));
+	i->current = (struct process*)malloc(sizeof(struct process));
 	memset(i->current, 0, sizeof(struct process));
 	return 0;
 }
@@ -266,7 +273,7 @@ int create_process_family(struct process_family *f, pid_t father)
 			ppid = getppid_of(ppid);
 		}
 		//allocate process descriptor
-		struct process *p = malloc(sizeof(struct process));
+		struct process *p = (struct process*)malloc(sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ppid==1) {
@@ -311,7 +318,7 @@ int update_process_family(struct process_family *f)
 			exit(1);
 		}
 		//allocate and insert the process
-		struct process *p = malloc(sizeof(struct process));
+		struct process *p = (struct process*)malloc(sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ancestor->member) {

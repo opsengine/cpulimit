@@ -23,15 +23,8 @@
 
 #define __PROCESS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <signal.h>
-#include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <sys/utsname.h>
 #include <limits.h>
 
 //USER_HZ detection, from openssl code

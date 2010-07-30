@@ -28,10 +28,6 @@
 
 #define __LIST__
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifndef  TRUE
     #define TRUE 1
     #define FALSE 0

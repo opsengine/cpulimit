@@ -21,9 +21,15 @@
 
 //TODO: add documentation to public functions
 
-#include "process.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <time.h>
+#include <sys/utsname.h>
 
-#include <fcntl.h>
+#include "process.h"
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>

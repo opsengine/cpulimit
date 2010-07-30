@@ -101,7 +101,8 @@ int lazy = 0;
 
 static void *memrchr(const void *s, int c, size_t n)
 {
-	const unsigned char *start=s,*end=s;
+	const unsigned char *start = (const unsigned char*)s;
+	const unsigned char *end = (const unsigned char*)s;
 
 	end+=n-1;
 
@@ -474,7 +475,7 @@ int main(int argc, char **argv) {
 		//executable file
 		const char *cmd = argv[optind];
 		//command line arguments
-		char **cmd_args = malloc((argc-optind+1)*sizeof(char*));
+		char **cmd_args = (char**)malloc((argc-optind+1)*sizeof(char*));
 		if (cmd_args==NULL) exit(2);
 		for (i=0; i<argc-optind; i++) {
 			cmd_args[i] = argv[i+optind];

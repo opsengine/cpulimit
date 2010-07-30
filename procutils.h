@@ -23,14 +23,8 @@
 
 #define __PROCUTILS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <string.h>
-#include <limits.h>
 
 #include "list.h"
 #include "process.h"
@@ -68,6 +62,8 @@ struct process_iterator {
 	struct kinfo_proc *procList;
 	int count;
 	int c;
+#elif defined __hpux
+	int count;
 #endif
 	struct process *current;
 };

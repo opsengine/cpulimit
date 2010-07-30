@@ -24,6 +24,9 @@
 *
 */
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "list.h"
 
 #define EMPTYLIST NULL
@@ -35,7 +38,7 @@ void init_list(struct list *l,int keysize) {
 }
 
 struct list_node *add_elem(struct list *l,void *elem) {
-	struct list_node *newnode=malloc(sizeof(struct list_node));
+	struct list_node *newnode=(struct list_node*)malloc(sizeof(struct list_node));
 	newnode->data=elem;
 	newnode->previous=l->last;
 	newnode->next=NULL;
@@ -105,7 +108,7 @@ struct list_node *xlocate_node(struct list *l,void *elem,int offset,int length) 
 	struct list_node *tmp;
 	tmp=l->first;
 	while(tmp!=NULL) {
-		if(!memcmp(tmp->data+offset,elem,length==0?l->keysize:length)) return (tmp);
+		if(!memcmp((char*)tmp->data+offset,elem,length==0?l->keysize:length)) return (tmp);
 		tmp=tmp->next;
 	}
 	return EMPTYLIST;
