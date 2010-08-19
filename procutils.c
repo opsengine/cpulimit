@@ -224,6 +224,7 @@ int read_next_process(struct process_iterator *i) {
 	char statfile[20];
 	sprintf(statfile,"/proc/%d/cmdline",pid);
 	FILE *fd = fopen(statfile, "r");
+	if (fd == NULL) return -1;
 	char buffer[1024];
 	if (fgets(buffer, sizeof(buffer), fd)==NULL) return -2;
 	fclose(fd);
