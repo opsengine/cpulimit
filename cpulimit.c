@@ -259,7 +259,7 @@ void limit_process(pid_t pid, double limit, int ignore_children)
 		}
 
 		if (pf.members.count==0) {
-			printf("No more processes.\n");
+			if (verbose) printf("No more processes.\n");
 			break;
 		}
 		
@@ -278,7 +278,7 @@ void limit_process(pid_t pid, double limit, int ignore_children)
 			}
 			if (process_monitor(proc) != 0) {
 				//process is dead, remove it from family
-				fprintf(stderr,"Process %d dead!\n", proc->pid);
+				if (verbose) fprintf(stderr,"Process %d dead!\n", proc->pid);
 				remove_process_from_family(&pf, proc->pid);
 				continue;
 			}
@@ -315,7 +315,7 @@ void limit_process(pid_t pid, double limit, int ignore_children)
 			struct process *proc = (struct process*)(node->data);
 			if (kill(proc->pid,SIGCONT)!=0) {
 				//process is dead, remove it from family
-				fprintf(stderr,"Process %d dead!\n", proc->pid);
+				if (verbose) fprintf(stderr,"Process %d dead!\n", proc->pid);
 				remove_process_from_family(&pf, proc->pid);
 			}
 		}
@@ -338,7 +338,7 @@ void limit_process(pid_t pid, double limit, int ignore_children)
 				struct process *proc = (struct process*)(node->data);
 				if (kill(proc->pid,SIGSTOP)!=0) {
 					//process is dead, remove it from family
-					fprintf(stderr,"Process %d dead!\n", proc->pid);
+					if (verbose) fprintf(stderr,"Process %d dead!\n", proc->pid);
 					remove_process_from_family(&pf, proc->pid);
 				}
 			}
@@ -484,7 +484,7 @@ int main(int argc, char **argv) {
 
 		if (verbose) {
 			printf("Running command: '%s", cmd);
-			for (i=0; i<argc-optind-1; i++) {
+			for (i=1; i<argc-optind; i++) {
 				printf(" %s", cmd_args[i]);
 			}
 			printf("'\n");
@@ -496,21 +496,36 @@ int main(int argc, char **argv) {
 		}
 		else if (child > 0) {
 			//parent code
-//			daemonize();
-//			freopen( "/dev/null", "r", stdin);
-//			freopen( "/dev/null", "w", stdout);
-//			freopen( "/dev/null", "w", stderr);
-			limit_process(child, limit, ignore_children);
-			int status;
-			waitpid(child, &status, 0);
-			exit(status);
+			int limiter = fork();
+			if (limiter < 0) {
+				exit(EXIT_FAILURE);
+			}
+			else if (limiter > 0) {
+				//parent
+				int status_process;
+				int status_limiter;
+				waitpid(child, &status_process, 0);
+				waitpid(limiter, &status_limiter, 0);
+				if (WIFEXITED(status_process)) {
+					if (verbose) printf("Process %d terminated with exit status %d\n", child, (int)WEXITSTATUS(status_process));
+					exit(WEXITSTATUS(status_process));
+				}
+				printf("Process %d terminated abnormally\n", child);
+				exit(status_process);
+			}
+			else {
+				//limiter code
+				if (verbose) printf("Limiting process %d\n",child);
+				limit_process(child, limit, ignore_children);
+				exit(0);
+			}
 		}
 		else {
-			//child code
+			//target process code
 			int ret = execvp(cmd, cmd_args);
 			//if we are here there was an error, show it
 			perror("Error");
-			_exit(ret);
+			exit(ret);
 		}
 	}
 
