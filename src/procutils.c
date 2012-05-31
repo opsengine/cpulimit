@@ -192,8 +192,7 @@ int init_process_iterator(struct process_iterator *i) {
 	i->c = 0;
 
 #endif
-	i->current = (struct process*)malloc(sizeof(struct process));
-	memset(i->current, 0, sizeof(struct process));
+	i->current = (struct process*)calloc(1, sizeof(struct process));
 	return 0;
 }
 
@@ -274,7 +273,7 @@ int create_process_family(struct process_family *f, pid_t father)
 			ppid = getppid_of(ppid);
 		}
 		//allocate process descriptor
-		struct process *p = (struct process*)malloc(sizeof(struct process));
+		struct process *p = (struct process*)calloc(1, sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ppid==1) {
@@ -319,7 +318,7 @@ int update_process_family(struct process_family *f)
 			exit(1);
 		}
 		//allocate and insert the process
-		struct process *p = (struct process*)malloc(sizeof(struct process));
+		struct process *p = (struct process*)calloc(1, sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ancestor->member) {
