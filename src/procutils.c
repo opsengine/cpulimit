@@ -192,8 +192,19 @@ int init_process_iterator(struct process_iterator *i) {
 	i->c = 0;
 
 #endif
-	i->current = (struct process*)malloc(sizeof(struct process));
-	memset(i->current, 0, sizeof(struct process));
+	i->current = (struct process*)calloc(1, sizeof(struct process));
+	return 0;
+}
+
+int close_process_iterator(struct process_iterator *i) {
+#ifdef __linux__
+	if (closedir(i->dip) == -1) {
+		perror("closedir");
+		return 1;
+	}
+#elif defined __APPLE__
+	//TODO
+#endif
 	return 0;
 }
 
@@ -274,7 +285,7 @@ int create_process_family(struct process_family *f, pid_t father)
 			ppid = getppid_of(ppid);
 		}
 		//allocate process descriptor
-		struct process *p = (struct process*)malloc(sizeof(struct process));
+		struct process *p = (struct process*)calloc(1, sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ppid==1) {
@@ -319,7 +330,7 @@ int update_process_family(struct process_family *f)
 			exit(1);
 		}
 		//allocate and insert the process
-		struct process *p = (struct process*)malloc(sizeof(struct process));
+		struct process *p = (struct process*)calloc(1, sizeof(struct process));
 		//init process
 		process_init(p, pid);
 		if (ancestor->member) {
@@ -405,8 +416,6 @@ int look_for_process_by_name(const char *process_name)
 	init_process_iterator(&iter);
 	pid_t pid = 0;
 
-printf("name\n");
-
 	while (read_next_process(&iter)==0) {
 		pid = iter.current->pid;
 	
@@ -435,6 +444,7 @@ printf("name\n");
 			}
 		}
 	}
+	if (close_process_iterator(&iter) != 1) exit(1);
 	if (found == 1) {
 		//ok, the process was found
 		return pid;
@@ -448,6 +458,6 @@ printf("name\n");
 		return -pid;
 	}
 	//this MUST NOT happen
-	return 0;
+	exit(2);
 }
 
