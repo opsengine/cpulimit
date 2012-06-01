@@ -496,6 +496,7 @@ int main(int argc, char **argv) {
 		}
 		else if (child > 0) {
 			//parent code
+			free(cmd_args);
 			int limiter = fork();
 			if (limiter < 0) {
 				exit(EXIT_FAILURE);
