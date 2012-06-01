@@ -196,6 +196,18 @@ int init_process_iterator(struct process_iterator *i) {
 	return 0;
 }
 
+int close_process_iterator(struct process_iterator *i) {
+#ifdef __linux__
+	if (closedir(i->dip) == -1) {
+		perror("closedir");
+		return 1;
+	}
+#elif defined __APPLE__
+	//TODO
+#endif
+	return 0;
+}
+
 // reads the next user process from /process
 // automatic closing if the end of the list is reached
 int read_next_process(struct process_iterator *i) {
@@ -404,8 +416,6 @@ int look_for_process_by_name(const char *process_name)
 	init_process_iterator(&iter);
 	pid_t pid = 0;
 
-printf("name\n");
-
 	while (read_next_process(&iter)==0) {
 		pid = iter.current->pid;
 	
@@ -434,6 +444,7 @@ printf("name\n");
 			}
 		}
 	}
+	if (close_process_iterator(&iter) != 1) exit(1);
 	if (found == 1) {
 		//ok, the process was found
 		return pid;
@@ -447,6 +458,6 @@ printf("name\n");
 		return -pid;
 	}
 	//this MUST NOT happen
-	return 0;
+	exit(2);
 }
 
