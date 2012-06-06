@@ -36,6 +36,16 @@
 #include <errno.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <limits.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <paths.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#endif
+
 #ifdef __linux__
 int get_proc_info(struct process *p, pid_t pid) {
 /*	static char statfile[20];
@@ -148,6 +158,26 @@ static int get_jiffies(struct process *proc) {
 	struct process proc2;
 	get_proc_info(&proc2, proc->pid);
 	return proc2.last_jiffies;
+#elif defined __FreeBSD__
+   kvm_t *my_kernel = NULL;
+   struct kinfo_proc *process_data = NULL;
+   int processes;
+   int my_jiffies = -1;
+   my_kernel = kvm_open(0, 0, 0, O_RDONLY, "kvm_open");
+   if (! my_kernel)
+   {
+      printf("Error opening kernel vm. You should be running as root.\n");
+      return -1;
+   }
+
+   process_data = kvm_getprocs(my_kernel, KERN_PROC_PID, pid, &processes);
+   if ( (process_data) && (processes >= 1) )
+       my_jiffies = process_data->ki_runtime;
+   
+   kvm_close(my_kernel);
+   if (my_jiffies >= 0)
+     my_jiffies /= 1000;
+   return my_jiffies;
 #endif
 }
 
