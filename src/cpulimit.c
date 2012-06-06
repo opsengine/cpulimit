@@ -99,23 +99,6 @@ int verbose = 0;
 //lazy mode (exits if there is no process)
 int lazy = 0;
 
-static void *memrchr(const void *s, int c, size_t n)
-{
-	const unsigned char *start = (const unsigned char*)s;
-	const unsigned char *end = (const unsigned char*)s;
-
-	end+=n-1;
-
-	while(end>=start) {
-		if(*end==c)
-			return (void *)end;
-		else
-			end--;
-	}
-
-	return NULL;
-}
-
 //SIGINT and SIGTERM signal handler
 static void quit(int sig)
 {

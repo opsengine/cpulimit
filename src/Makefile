@@ -1,5 +1,5 @@
 CC?=gcc
-CFLAGS?=-Wall -O2
+CFLAGS?=-Wall -O2 -D_GNU_SOURCE
 TARGETS=cpulimit
 LIBS=process.o procutils.o list.o
 
