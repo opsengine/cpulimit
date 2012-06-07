@@ -170,7 +170,7 @@ static int get_jiffies(struct process *proc) {
       return -1;
    }
 
-   process_data = kvm_getprocs(my_kernel, KERN_PROC_PID, pid, &processes);
+   process_data = kvm_getprocs(my_kernel, KERN_PROC_PID, proc->pid, &processes);
    if ( (process_data) && (processes >= 1) )
        my_jiffies = process_data->ki_runtime;
    

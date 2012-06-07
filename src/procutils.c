@@ -29,12 +29,17 @@
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include "procutils.h"
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #include <errno.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <kvm.h>
 #endif
 
 /* PROCESS STATISTICS FUNCTIONS */
@@ -190,6 +195,22 @@ int init_process_iterator(struct process_iterator *i) {
 	i->procList = result;
 	i->count = err == 0 ? length / sizeof *result : 0;
 	i->c = 0;
+#elif defined __FreeBSD__
+	kvm_t *kd;
+	struct kinfo_proc *procs = NULL;
+	char errbuf[_POSIX2_LINE_MAX];
+	int count;
+	/* Open the kvm interface, get a descriptor */
+	if ((kd = kvm_open(NULL, NULL, NULL, 0, errbuf)) == NULL) {
+		/* fprintf(stderr, "kvm_open: %s\n", errbuf); */
+		fprintf(stderr, "kvm_open: ", errbuf);
+	}
+	/* Get the list of processes. */
+	if ((procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count)) == NULL) {
+		kvm_close(kd);
+		/* fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(kd)); */
+		fprintf(stderr, "kvm_getprocs: ", kvm_geterr(kd));
+	}
 
 #endif
 	i->current = (struct process*)calloc(1, sizeof(struct process));

@@ -1,7 +1,7 @@
 CC?=gcc
 CFLAGS?=-Wall -O2 -D_GNU_SOURCE
 TARGETS=cpulimit
-LIBS=process.o procutils.o list.o
+LIBS=process.o procutils.o list.o -lkvm
 
 all::	$(TARGETS)
 
