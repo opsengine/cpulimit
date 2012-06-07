@@ -134,6 +134,8 @@ static int get_starttime(pid_t pid)
 	struct process proc;
 	get_proc_info(&proc, pid);
 	return proc.starttime;
+#elif defined __FreeBSD__
+	return -1;
 #endif
 }
 

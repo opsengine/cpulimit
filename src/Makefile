@@ -1,7 +1,13 @@
 CC?=gcc
 CFLAGS?=-Wall -O2 -D_GNU_SOURCE
 TARGETS=cpulimit
-LIBS=process.o procutils.o list.o -lkvm
+LIBS=process.o procutils.o list.o
+
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), FreeBSD)
+LIBS+=-lkvm
+endif
 
 all::	$(TARGETS)
 

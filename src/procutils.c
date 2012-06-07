@@ -68,6 +68,8 @@ static pid_t getppid_of(pid_t pid)
 	struct process p;
 	get_proc_info(&p, pid);
 	return p.ppid;
+#elif defined __FreeBSD__
+	
 #endif
 }
 
@@ -87,20 +89,6 @@ static int is_kernel_thread(pid_t pid)
 	return ret;
 }
 #endif
-
-//deprecated
-// returns 1 if pid is an existing pid, 0 otherwise
-static int process_exists(pid_t pid) {
-#ifdef __linux__
-	static char procdir[20];
-	struct stat procstat;
-	sprintf(procdir, "/proc/%d", pid);
-	return stat(procdir, &procstat)==0;
-#elif defined __APPLE__
-	struct process p;
-	return get_proc_info(&p, pid)==0;
-#endif
-}
 
 /* PID HASH FUNCTIONS */
 
@@ -203,13 +191,13 @@ int init_process_iterator(struct process_iterator *i) {
 	/* Open the kvm interface, get a descriptor */
 	if ((kd = kvm_open(NULL, NULL, NULL, 0, errbuf)) == NULL) {
 		/* fprintf(stderr, "kvm_open: %s\n", errbuf); */
-		fprintf(stderr, "kvm_open: ", errbuf);
+		fprintf(stderr, "kvm_open: %s", errbuf);
 	}
 	/* Get the list of processes. */
 	if ((procs = kvm_getprocs(kd, KERN_PROC_ALL, 0, &count)) == NULL) {
 		kvm_close(kd);
 		/* fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(kd)); */
-		fprintf(stderr, "kvm_getprocs: ", kvm_geterr(kd));
+		fprintf(stderr, "kvm_getprocs: %s", kvm_geterr(kd));
 	}
 
 #endif
@@ -409,14 +397,11 @@ void cleanup_process_family(struct process_family *f)
 
 // look for a process by pid
 // search_pid   : pid of the wanted process
-// return:  pid of the found process, if it is found
-//          0, if it's not found
-//          negative pid, if it is found but it's not possible to control it
+// return:  pid of the found process, if successful
+//          negative pid, if the process does not exist or if the signal fails
 int look_for_process_by_pid(pid_t pid)
 {
-	if (process_exists(pid))
-		return (kill(pid,0)==0) ? pid : -pid;
-	return 0;
+	return (kill(pid,0)==0) ? pid : -pid;
 }
 
 // look for a process with a given name
