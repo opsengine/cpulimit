@@ -69,7 +69,7 @@ static pid_t getppid_of(pid_t pid)
 	get_proc_info(&p, pid);
 	return p.ppid;
 #elif defined __FreeBSD__
-	
+
 #endif
 }
 
