@@ -2,3 +2,4 @@
 *~
 src/cpulimit
 busy
+test/process_iterator_test
