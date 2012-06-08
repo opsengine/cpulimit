@@ -84,11 +84,13 @@ int close_process_iterator(struct process_iterator *it) {
 
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <fcntl.h>
+#include <paths.h>
 
 int init_process_iterator(struct process_iterator *it) {
 	char errbuf[_POSIX2_LINE_MAX];
 	/* Open the kvm interface, get a descriptor */
-	if ((it->kd = kvm_open(NULL, NULL, NULL, 0, errbuf)) == NULL) {
+	if ((it->kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf)) == NULL) {
 		/* fprintf(stderr, "kvm_open: %s\n", errbuf); */
 		fprintf(stderr, "kvm_open: %s", errbuf);
 		return -1;
