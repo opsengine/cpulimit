@@ -42,9 +42,9 @@ static int read_process_info(pid_t pid, struct process *p)
 	p->ppid = atoi(token);
 	for (i=0; i<10; i++)
 		token = strtok(NULL, " ");
-	p->cputime = atoi(token) * HZ;
+	p->cputime = atoi(token) * 1000 / HZ;
 	token = strtok(NULL, " ");
-	p->cputime += atoi(token) * HZ;
+	p->cputime += atoi(token) * 1000 / HZ;
 	for (i=0; i<7; i++)
 		token = strtok(NULL, " ");
 	p->starttime = atoi(token) / sysconf(_SC_CLK_TCK);
