@@ -1,5 +1,5 @@
 CC?=gcc
-CFLAGS?=-Wall -O2
+CFLAGS?=-Wall -g
 TARGETS=busy process_iterator_test
 LIBS?=-lpthread
 

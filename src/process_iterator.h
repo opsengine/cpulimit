@@ -27,6 +27,24 @@
 #include <limits.h>
 #include <dirent.h>
 
+//USER_HZ detection, from openssl code
+#ifndef HZ
+# if defined(_SC_CLK_TCK) \
+     && (!defined(OPENSSL_SYS_VMS) || __CTRL_VER >= 70000000)
+#  define HZ ((double)sysconf(_SC_CLK_TCK))
+# else
+#  ifndef CLK_TCK
+#   ifndef _BSD_CLK_TCK_ /* FreeBSD hack */
+#    define HZ  100.0
+#   else /* _BSD_CLK_TCK_ */
+#    define HZ ((double)_BSD_CLK_TCK_)
+#   endif
+#  else /* CLK_TCK */
+#   define HZ ((double)CLK_TCK)
+#  endif
+# endif
+#endif
+
 #ifdef __FreeBSD__
 #include <kvm.h>
 #endif
@@ -39,8 +57,8 @@ struct process {
 	pid_t ppid;
 	//start time
 	int starttime;
-	//total number of jiffies used by the process at time last_sample
-	int last_jiffies;
+	//cputime used by the process expressed in milliseconds
+	int cputime;
 	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
 	//1 if the process is zombie
@@ -49,21 +67,27 @@ struct process {
 	char command[PATH_MAX+1];
 };
 
+struct process_filter {
+	int pid;
+	int include_children;
+	char program_name[PATH_MAX+1];
+};
+
 struct process_iterator {
 #ifdef __linux__
 	DIR *dip;
-	struct dirent *dit;
-#elif defined __APPLE__
-	struct kinfo_proc *procList;
 #elif defined __FreeBSD__
-	kvm_t *kd;
+	int boot_time;
 	struct kinfo_proc *procs;
 	int count;
 	int i;
+#elif defined __APPLE__
+	struct kinfo_proc *procList;
 #endif
+	struct process_filter *filter;
 };
 
-int init_process_iterator(struct process_iterator *i);
+int init_process_iterator(struct process_iterator *i, struct process_filter *filter);
 
 int read_next_process(struct process_iterator *i, struct process *p);
 
