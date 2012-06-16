@@ -2,12 +2,32 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/procfs.h>
-
+#include <time.h>
 #include "process_iterator.h"
 
 //See this link to port to other systems: http://www.steve.org.uk/Reference/Unix/faq_8.html#SEC85
 
 #ifdef __linux__
+
+static int get_boot_time()
+{
+	int uptime;
+	FILE *fp = fopen ("/proc/uptime", "r");
+	if (fp != NULL)
+	{
+		char buf[BUFSIZ];
+		char *b = fgets(buf, BUFSIZ, fp);
+		if (b == buf)
+		{
+			char *end_ptr;
+			double upsecs = strtod(buf, &end_ptr);
+			uptime = (int)upsecs;
+		}
+		fclose (fp);
+	}
+	time_t now = time(NULL);
+	return now - uptime;
+}
 
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
 {
@@ -18,6 +38,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		return -1;
 	}
 	it->filter = filter;
+	it->boot_time = get_boot_time();
 	return 0;
 }
 
@@ -89,10 +110,17 @@ static int is_child_of(pid_t child_pid, pid_t parent_pid)
 
 int read_next_process(struct process_iterator *it, struct process *p)
 {
+	if (it->dip == NULL)
+	{
+		//end of processes
+		return -1;
+	}
 	if (it->filter->pid > 0 && !it->filter->include_children)
 	{
 		read_process_info(it->filter->pid, p);
-		return -1;
+		p->starttime += it->boot_time;
+		it->dip = NULL;
+		return 0;
 	}
 	struct dirent *dit;
 	//read in from /proc and seek for process dirs
@@ -102,6 +130,7 @@ int read_next_process(struct process_iterator *it, struct process *p)
 		p->pid = atoi(dit->d_name);
 		if (it->filter->pid > 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid)) continue;
 		read_process_info(p->pid, p);
+		p->starttime += it->boot_time;
 		break;
 	}
 	if (dit == NULL)
@@ -148,11 +177,6 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		return -1;
 	}
 	kvm_close(kd);
-    static int request[2] = { CTL_KERN, KERN_BOOTTIME };
-    struct timeval result;
-    size_t result_len = sizeof result;
-    if (sysctl (request, 2, &result, &result_len, NULL, 0) < 0) return -1;
-	it->boot_time = result.tv_sec;
 	it->filter = filter;
 	return 0;
 }
@@ -162,7 +186,7 @@ int read_next_process(struct process_iterator *it, struct process *p) {
 	p->pid = it->procs[it->i].ki_pid;
 	p->ppid = it->procs[it->i].ki_ppid;
 	p->cputime = it->procs[it->i].ki_runtime / 1000;
-	p->starttime = it->procs[it->i].ki_start.tv_sec - it->boot_time;
+	p->starttime = it->procs[it->i].ki_start.tv_sec;
 	it->i++;
 	if (it->i == it->count) return -1;
 	return 0;

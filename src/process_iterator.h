@@ -76,8 +76,8 @@ struct process_filter {
 struct process_iterator {
 #ifdef __linux__
 	DIR *dip;
-#elif defined __FreeBSD__
 	int boot_time;
+#elif defined __FreeBSD__
 	struct kinfo_proc *procs;
 	int count;
 	int i;
