@@ -89,7 +89,7 @@ struct process_iterator {
 
 int init_process_iterator(struct process_iterator *i, struct process_filter *filter);
 
-int read_next_process(struct process_iterator *i, struct process *p);
+int get_next_process(struct process_iterator *i, struct process *p);
 
 int close_process_iterator(struct process_iterator *i);
 

@@ -18,24 +18,23 @@ int test_single_process()
 	count = 0;
 	now = time(NULL);
 	init_process_iterator(&it, &filter);
-	while (read_next_process(&it, &process) == 0)
+	while (get_next_process(&it, &process) == 0)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
 		assert(process.cputime < 100);
 		assert(process.starttime == now || process.starttime == now - 1);
-
 		count++;
 	}
 	assert(count == 1);
 	close_process_iterator(&it);
 	//iterate children
 	filter.pid = getpid();
-	filter.include_children = 1;
+	filter.include_children = 0;
 	count = 0;
 	now = time(NULL);
 	init_process_iterator(&it, &filter);
-	while (read_next_process(&it, &process) == 0)
+	while (get_next_process(&it, &process) == 0)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
@@ -65,7 +64,7 @@ int test_multiple_process()
 	init_process_iterator(&it, &filter);
 	int count = 0;
 	time_t now = time(NULL);
-	while (read_next_process(&it, &process) == 0)
+	while (get_next_process(&it, &process) == 0)
 	{
 		if (process.pid == getpid()) assert(process.ppid == getppid());
 		else if (process.pid == child) assert(process.ppid == getpid());
@@ -79,10 +78,35 @@ int test_multiple_process()
 	return 0;
 }
 
+int test_all_processes()
+{
+	struct process_iterator it;
+	struct process process;
+	struct process_filter filter;
+	filter.pid = 0;
+	init_process_iterator(&it, &filter);
+	int count = 0;
+	time_t now = time(NULL);
+	while (get_next_process(&it, &process) == 0)
+	{
+		if (process.pid == getpid())
+		{
+			assert(process.ppid == getppid());
+			assert(process.cputime < 100);
+			assert(process.starttime == now || process.starttime == now - 1);
+		}
+		count++;
+	}
+	assert(count >= 10);
+	close_process_iterator(&it);
+	return 0;
+}
+
 int main()
 {
-	printf("Current PID %d\n", getpid());
+	printf("Pid %d\n", getpid());
 	test_single_process();
 	test_multiple_process();
+	test_all_processes();
 	return 0;
 }

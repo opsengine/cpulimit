@@ -14,7 +14,7 @@ all::	$(TARGETS)
 busy:	busy.c $(LIBS)
 	$(CC) -o busy busy.c $(LIBS) $(CFLAGS)
 
-process_iterator_test: process_iterator_test.c $(LIBS)
+process_iterator_test: process_iterator_test.c $(LIBS) ../src/process_iterator.o
 	$(CC) -I../src -o process_iterator_test process_iterator_test.c  ../src/process_iterator.o $(LIBS) $(CFLAGS)
 
 clean:

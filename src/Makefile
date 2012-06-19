@@ -9,10 +9,10 @@ ifeq ($(UNAME), FreeBSD)
 LIBS+=-lkvm
 endif
 
-all::	$(TARGETS) process_iterator.o
+all::	process_iterator.o
 
-cpulimit:	cpulimit.c $(LIBS)
-	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
+#cpulimit:	cpulimit.c $(LIBS)
+#	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
 
 process_iterator.o: process_iterator.c process_iterator.h
 	$(CC) -c process_iterator.c $(CFLAGS)
@@ -26,8 +26,8 @@ process_group.o: process_group.c process_group.h process_iterator.o list.o
 #process.o: process.c process.h
 #	$(CC) -c process.c $(CFLAGS)
 
-procutils.o: procutils.c procutils.h
-	$(CC) -c procutils.c $(CFLAGS)
+#procutils.o: procutils.c procutils.h
+#	$(CC) -c procutils.c $(CFLAGS)
 
 clean:
 	rm -f *~ *.o $(TARGETS)
