@@ -1,11 +1,14 @@
 #include <stdio.h>
-#include <process_iterator.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <assert.h>
 #include <time.h>
 
-int test_single_process()
+#include <process_iterator.h>
+#include <process_group.h>
+
+void test_single_process()
 {
 	struct process_iterator it;
 	struct process process;
@@ -44,10 +47,9 @@ int test_single_process()
 	}
 	assert(count == 1);
 	close_process_iterator(&it);
-	return 0;
 }
 
-int test_multiple_process()
+void test_multiple_process()
 {
 	struct process_iterator it;
 	struct process process;
@@ -57,7 +59,7 @@ int test_multiple_process()
 	{
 		//child code
 		sleep(1);
-		return 0;
+		exit(0);
 	}
 	filter.pid = getpid();
 	filter.include_children = 1;
@@ -75,10 +77,9 @@ int test_multiple_process()
 	}
 	assert(count == 2);
 	close_process_iterator(&it);
-	return 0;
 }
 
-int test_all_processes()
+void test_all_processes()
 {
 	struct process_iterator it;
 	struct process process;
@@ -99,7 +100,15 @@ int test_all_processes()
 	}
 	assert(count >= 10);
 	close_process_iterator(&it);
-	return 0;
+}
+
+void test_process_list()
+{
+	struct process_group pgroup;
+	pid_t current_pid = getpid();
+	assert(init_process_group(&pgroup, current_pid, 0) == 0);
+	update_process_group(&pgroup);
+	assert(close_process_group(&pgroup) == 0);
 }
 
 int main()
@@ -108,5 +117,6 @@ int main()
 	test_single_process();
 	test_multiple_process();
 	test_all_processes();
+	test_process_list();
 	return 0;
 }

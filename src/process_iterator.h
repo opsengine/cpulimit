@@ -82,7 +82,7 @@ struct process_iterator {
 	int count;
 	int i;
 #elif defined __APPLE__
-	struct kinfo_proc *procList;
+	struct kinfo_proc *proclist;
 #endif
 	struct process_filter *filter;
 };

@@ -1,7 +1,8 @@
 CC?=gcc
 CFLAGS?=-Wall -g -D_GNU_SOURCE
 TARGETS=cpulimit
-LIBS=procutils.o list.o process_iterator.o
+#LIBS=procutils.o list.o process_iterator.o
+LIBS=list.o process_iterator.o process_group.o
 
 UNAME := $(shell uname)
 
@@ -9,7 +10,7 @@ ifeq ($(UNAME), FreeBSD)
 LIBS+=-lkvm
 endif
 
-all::	process_iterator.o
+all::	$(LIBS)
 
 #cpulimit:	cpulimit.c $(LIBS)
 #	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)

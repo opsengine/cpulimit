@@ -286,7 +286,7 @@ int close_process_iterator(struct process_iterator *it) {
 	// 	}
 	// }
 
-	// i->procList = result;
+	// i->proclist = result;
 	// i->count = err == 0 ? length / sizeof *result : 0;
 	// i->c = 0;
 

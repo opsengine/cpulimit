@@ -19,9 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __PROCESS_MONITOR_H
+#ifndef __PROCESS_GROUP_H
 
-#define __PROCESS_MONITOR_H
+#define __PROCESS_GROUP_H
 
 #include "process_iterator.h"
 
@@ -30,18 +30,19 @@
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
 
-struct process_monitor
+struct process_group
 {
 	//hashtable with all the processes (array of struct list of struct process)
 	struct list *proctable[PIDHASH_SZ];
+	struct list *proclist;
 	pid_t target_pid;
-	int ignore_children;
+	int include_children;
 };
 
-int init_process_monitor(struct process_monitor *monitor, int target_pid, int ignore_children);
+int init_process_group(struct process_group *pgroup, int target_pid, int include_children);
 
-struct list* get_process_list(struct process_monitor *monitor);
+void update_process_group(struct process_group *pgroup);
 
-int close_process_monitor(struct process_monitor *monitor);
+int close_process_group(struct process_group *pgroup);
 
 #endif
