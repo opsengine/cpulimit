@@ -137,7 +137,7 @@ void test_process_group_single()
 	}
 	signal(SIGABRT, &kill_child);
     signal(SIGTERM, &kill_child);
-	assert(init_process_group(&pgroup, child, 0) == 0);
+	assert(init_process_group(&pgroup, child, 1) == 0);
 	int i;
 	for (i=0; i<10000; i++)
 	{

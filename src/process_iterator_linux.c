@@ -108,6 +108,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 	{
 		read_process_info(it->filter->pid, p);
 		//p->starttime += it->boot_time;
+		closedir(it->dip);
 		it->dip = NULL;
 		return 0;
 	}
