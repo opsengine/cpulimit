@@ -125,7 +125,7 @@ void test_process_group_all()
 	assert(close_process_group(&pgroup) == 0);
 }
 
-void test_process_group_single()
+void test_process_group_single(int include_children)
 {
 	struct process_group pgroup;
 	child = fork();
@@ -137,9 +137,10 @@ void test_process_group_single()
 	}
 	signal(SIGABRT, &kill_child);
     signal(SIGTERM, &kill_child);
-	assert(init_process_group(&pgroup, child, 1) == 0);
+	assert(init_process_group(&pgroup, child, include_children) == 0);
 	int i;
-	for (i=0; i<10000; i++)
+	double tot_usage = 0;
+	for (i=0; i<100; i++)
 	{
 		update_process_group(&pgroup);
 		struct list_node *node = NULL;
@@ -149,15 +150,16 @@ void test_process_group_single()
 			assert(p->pid == child);
 			assert(p->ppid == getpid());
 			assert(p->cpu_usage <= 1.2);
-printf("%f\n", p->cpu_usage);
+			tot_usage += p->cpu_usage;
 			count++;
 		}
 		assert(count == 1);
 		struct timespec interval;
 		interval.tv_sec = 0;
-		interval.tv_nsec = 100000000;
+		interval.tv_nsec = 50000000;
 		nanosleep(&interval, NULL);
 	}
+	assert(tot_usage / i < 1.1 && tot_usage / i > 0.9);
 	assert(close_process_group(&pgroup) == 0);
 	kill(child, SIGINT);
 }
@@ -169,6 +171,7 @@ int main()
 	test_multiple_process();
 	test_all_processes();
 	test_process_group_all();
-	test_process_group_single();
+	test_process_group_single(0);
+	test_process_group_single(1);
 	return 0;
 }

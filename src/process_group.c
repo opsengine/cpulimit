@@ -54,41 +54,6 @@ static inline unsigned long timediff(const struct timeval *t1,const struct timev
 //parameter in range 0-1
 #define ALFA 0.08
 
-int process_monitor(struct process *proc)
-{
-	// int j = get_jiffies(proc);
-	// if (j<0) return -1; //error retrieving jiffies count (maybe the process is dead)
-	// struct timeval now;
-	// gettimeofday(&now, NULL);
-	// if (proc->last_jiffies==-1) {
-	// 	//store current time
-	// 	proc->last_sample = now;
-	// 	//store current jiffies
-	// 	proc->last_jiffies = j;
-	// 	//it's the first sample, cannot figure out the cpu usage
-	// 	proc->cpu_usage = -1;
-	// 	return 0;
-	// }
-	// //time from previous sample (in ns)
-	// long dt = timediff(&now, &(proc->last_sample));
-	// //how many jiffies in dt?
-	// double max_jiffies = dt * HZ / 1000000.0;
-	// double sample = (j - proc->last_jiffies) / max_jiffies;
-	// if (proc->cpu_usage == -1) {
-	// 	//initialization
-	// 	proc->cpu_usage = sample;
-	// }
-	// else {
-	// 	//usage adjustment
-	// 	proc->cpu_usage = (1-ALFA) * proc->cpu_usage + ALFA * sample;
-	// }
-	// //store current time
-	// proc->last_sample = now;
-	// //store current jiffies
-	// proc->last_jiffies = j;	
-	return 0;
-}
-
 void update_process_group(struct process_group *pgroup)
 {
 	struct process_iterator it;
@@ -105,10 +70,9 @@ void update_process_group(struct process_group *pgroup)
 	long dt = timediff(&now, &pgroup->last_update) / 1000;
 	while (get_next_process(&it, &tmp_process) != -1)
 	{
-		// printf("Read process %d\n", tmp_process.pid);
-		// printf("Parent %d\n", tmp_process.ppid);
-		// printf("Starttime %d\n", tmp_process.starttime);
-		// printf("CPU time %d\n", tmp_process.cputime);
+//		struct timeval t;
+//		gettimeofday(&t, NULL);
+//		printf("T=%ld.%ld PID=%d PPID=%d START=%d CPUTIME=%d\n", t.tv_sec, t.tv_usec, tmp_process.pid, tmp_process.ppid, tmp_process.starttime, tmp_process.cputime);
 		int hashkey = pid_hashfn(tmp_process.pid + tmp_process.starttime);
 		if (pgroup->proctable[hashkey] == NULL)
 		{
@@ -140,16 +104,16 @@ void update_process_group(struct process_group *pgroup)
 				assert(tmp_process.ppid == p->ppid);
 				assert(tmp_process.starttime == p->starttime);
 				//process exists. update CPU usage
-				double sample = (tmp_process.cputime - p->cputime) / dt;
+				double sample = 1.0 * (tmp_process.cputime - p->cputime) / dt;
 				if (p->cpu_usage == -1) {
 					//initialization
 					p->cpu_usage = sample;
 				}
 				else {
 					//usage adjustment
-					p->cpu_usage = (1-ALFA) * p->cpu_usage + ALFA * sample;
+					p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
 				}
-				p->cpu_usage = (1-ALFA) * p->cpu_usage + ALFA * sample;
+				p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
 				p->cputime = tmp_process.cputime;
 				add_elem(pgroup->proclist, p);
 			}
