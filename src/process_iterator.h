@@ -53,16 +53,14 @@
 struct process {
 	//pid of the process
 	pid_t pid;
-	//pid of the process
+	//ppid of the process
 	pid_t ppid;
-	//start time
+	//start time (unix timestamp)
 	int starttime;
-	//cputime used by the process expressed in milliseconds
+	//cputime used by the process (in milliseconds)
 	int cputime;
 	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
-	//1 if the process is zombie
-	int is_zombie;
 	//absolute path of the executable file
 	char command[PATH_MAX+1];
 };

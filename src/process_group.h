@@ -37,6 +37,7 @@ struct process_group
 	struct list *proclist;
 	pid_t target_pid;
 	int include_children;
+	struct timeval last_update;
 };
 
 int init_process_group(struct process_group *pgroup, int target_pid, int include_children);
