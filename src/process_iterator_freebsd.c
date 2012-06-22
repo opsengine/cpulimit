@@ -31,6 +31,7 @@ static void kproc2proc(struct kinfo_proc *kproc, struct process *proc)
 	proc->ppid = kproc->ki_ppid;
 	proc->cputime = kproc->ki_runtime / 1000;
 	proc->starttime = kproc->ki_start.tv_sec;
+	memcpy(proc->command, kproc->ki_comm, strlen(kproc->ki_comm));
 }
 
 static int get_single_process(pid_t pid, struct process *process)

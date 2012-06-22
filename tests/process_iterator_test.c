@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <time.h>
 #include <signal.h>
+#include <string.h>
 
 #include <process_iterator.h>
 #include <process_group.h>
@@ -93,6 +94,7 @@ void test_all_processes()
 	struct process process;
 	struct process_filter filter;
 	filter.pid = 0;
+	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	int count = 0;
 //	time_t now = time(NULL);
@@ -159,12 +161,29 @@ void test_process_group_single(int include_children)
 		interval.tv_nsec = 50000000;
 		nanosleep(&interval, NULL);
 	}
-	assert(tot_usage / i < 1.1 && tot_usage / i > 0.9);
+	assert(tot_usage / i < 1.1 && tot_usage / i > 0.8);
 	assert(close_process_group(&pgroup) == 0);
 	kill(child, SIGINT);
 }
 
-int main()
+void test_process_name(const char * command)
+{
+	struct process_iterator it;
+	struct process process;
+	struct process_filter filter;
+	filter.pid = getpid();
+	filter.include_children = 0;
+	init_process_iterator(&it, &filter);
+	assert(get_next_process(&it, &process) == 0);
+	assert(process.pid == getpid());
+	assert(process.ppid == getppid());
+//	printf("%s should be %s\n", command, process.command);
+	assert(strncmp(command, process.command, strlen(process.command)) == 0);
+	assert(get_next_process(&it, &process) != 0);
+	close_process_iterator(&it);
+}
+
+int main(int argc, char **argv)
 {
 //	printf("Pid %d\n", getpid());
 	test_single_process();
@@ -173,5 +192,6 @@ int main()
 	test_process_group_all();
 	test_process_group_single(0);
 	test_process_group_single(1);
+	test_process_name(argv[0]);
 	return 0;
 }

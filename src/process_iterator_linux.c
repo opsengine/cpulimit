@@ -1,3 +1,5 @@
+#include <sys/vfs.h>
+
 static int get_boot_time()
 {
 	int uptime;
@@ -18,8 +20,22 @@ static int get_boot_time()
 	return now - uptime;
 }
 
+static int check_proc()
+{
+	struct statfs mnt;
+	if (statfs("/proc", &mnt) < 0)
+		return 0;
+	if (mnt.f_type!=0x9fa0)
+		return 0;
+	return 1;
+}
+
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
 {
+	if (!check_proc()) {
+		fprintf(stderr, "procfs is not mounted!\nAborting\n");
+		exit(-2);
+	}
 	//open a directory stream to /proc directory
 	if ((it->dip = opendir("/proc")) == NULL)
 	{
@@ -60,13 +76,13 @@ static int read_process_info(pid_t pid, struct process *p)
 	p->starttime = atoi(token) / sysconf(_SC_CLK_TCK);
 	//read command line
 	sprintf(exefile,"/proc/%d/cmdline", p->pid);
-	fd = fopen(statfile, "r");
+	fd = fopen(exefile, "r");
 	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
 		fclose(fd);
 		return -1;
 	}
 	fclose(fd);
-	sscanf(buffer, "%s", (char*)&p->command);
+	sscanf(buffer, "%s", p->command);
 	return 0;
 }
 
