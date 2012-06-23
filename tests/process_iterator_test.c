@@ -177,7 +177,6 @@ void test_process_name(const char * command)
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
-//	printf("%s should be %s\n", command, process.command);
 	assert(strncmp(command, process.command, strlen(process.command)) == 0);
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);

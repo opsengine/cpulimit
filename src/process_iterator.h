@@ -76,6 +76,7 @@ struct process_iterator {
 	DIR *dip;
 	int boot_time;
 #elif defined __FreeBSD__
+	kvm_t *kd;
 	struct kinfo_proc *procs;
 	int count;
 	int i;
