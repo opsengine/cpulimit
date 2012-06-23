@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 	int i = 0;
 	int num_threads = 1;
 	if (argc == 2) num_threads = atoi(argv[1]);
-	for (i=0; i<num_threads; i++)
+	for (i=0; i<num_threads-1; i++)
 	{
 		pthread_t thread;
 		int ret;
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 	}
-	printf("Press ENTER to exit...");
-	getchar();
+	loop();
 	return 0;
 }
+

@@ -127,7 +127,7 @@ void *locate_elem(struct list *l,void *elem) {
 	return(xlocate_elem(l,elem,0,0));
 }
 
-void flush_list(struct list *l) {
+void clear_list(struct list *l) {
 	struct list_node *tmp;
 	while(l->first!=EMPTYLIST) {
 		tmp=l->first;
