@@ -62,7 +62,7 @@ struct process_iterator {
 	struct kinfo_proc *procList;
 	int count;
 	int c;
-#elif defined __hpux
+#elif defined __FreeBSD__
 	int count;
 #endif
 	struct process *current;

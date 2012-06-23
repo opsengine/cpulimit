@@ -2,7 +2,7 @@
  *
  * cpulimit - a cpu limiter for Linux
  *
- * Copyright (C) 2005-2008, by:  Angelo Marletta <marlonx80@hotmail.com>
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <marlonx80@hotmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __PROCESS_H
+#ifndef __PROCESS_ITERATOR_H
 
-#define __PROCESS_H
+#define __PROCESS_ITERATOR_H
 
-#include <sys/time.h>
 #include <unistd.h>
 #include <limits.h>
+#include <dirent.h>
 
 //USER_HZ detection, from openssl code
 #ifndef HZ
@@ -45,44 +45,51 @@
 # endif
 #endif
 
+#ifdef __FreeBSD__
+#include <kvm.h>
+#endif
+
 // process descriptor
 struct process {
 	//pid of the process
 	pid_t pid;
-	//pid of the process
+	//ppid of the process
 	pid_t ppid;
-	//start time
+	//start time (unix timestamp)
 	int starttime;
-	//is member of the family?
-	int member; //TODO: delete this field
-	//total number of jiffies used by the process at time last_sample
-	int last_jiffies;
-	//timestamp when last_jiffies and cpu_usage was calculated
-	struct timeval last_sample;
+	//cputime used by the process (in milliseconds)
+	int cputime;
 	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
-	//1 if the process is zombie
-	int is_zombie;
 	//absolute path of the executable file
 	char command[PATH_MAX+1];
-
-	//system-dependent members
-//TODO: delete these members for the sake of portability?
-#ifdef __linux__
-	//preallocate buffers for performance
-	//name of /proc/PID/stat file
-	char stat_file[20];
-	//read buffer for /proc filesystem
-	char buffer[1024];
-#endif	
 };
 
-int get_proc_info(struct process *p, pid_t pid);
+struct process_filter {
+	int pid;
+	int include_children;
+	char program_name[PATH_MAX+1];
+};
 
-int process_init(struct process *proc, pid_t pid);
+struct process_iterator {
+#ifdef __linux__
+	DIR *dip;
+	int boot_time;
+#elif defined __FreeBSD__
+	kvm_t *kd;
+	struct kinfo_proc *procs;
+	int count;
+	int i;
+#elif defined __APPLE__
+	struct kinfo_proc *proclist;
+#endif
+	struct process_filter *filter;
+};
 
-int process_monitor(struct process *proc);
+int init_process_iterator(struct process_iterator *i, struct process_filter *filter);
 
-int process_close(struct process *proc);
+int get_next_process(struct process_iterator *i, struct process *p);
+
+int close_process_iterator(struct process_iterator *i);
 
 #endif

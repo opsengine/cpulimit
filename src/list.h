@@ -133,7 +133,7 @@ void *locate_elem(struct list *l,void *elem);
 /*
  * Delete all the elements in the list
  */
-void flush_list(struct list *l);
+void clear_list(struct list *l);
 
 /*
  * Delete every element in the list, and free the memory pointed by all the node data
