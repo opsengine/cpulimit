@@ -1,8 +1,8 @@
 /**
  *
- * cpulimit - a cpu limiter for Linux
+ * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2008, by:  Angelo Marletta <marlonx80@hotmail.com>
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,28 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
- **********************************************************************
+ **************************************************************
  *
  * This is a simple program to limit the cpu usage of a process
  * If you modify this code, send me a copy please
  *
- * Date:    30/8/2008
- * Version: 1.2 beta
- * Get the latest version at: http://cpulimit.sourceforge.net
- *
- * Changelog from 1.1:
- * - reorganization of the code, splitted in more source files
- * - cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
- * - in order to avoid deadlocks, cpulimit now prevents to limit itself
- * - option --path eliminated, use --exe instead both for absolute path and file name
- * - call setpriority() just once in limit_process()
- * - no more segmentation fault when processes exit
- * - no more memory corruption when processes exit
- * - cpulimit exits if --lazy option is specified and the process terminates
- * - target process can be created on-fly given command line
- * - light and scalable algorithm for subprocesses detection and limitation
- * - mac os support
- * - minor enhancements and bugfixes
+ * Get the latest version at: http://github.com/opsengine/cpulimit
  *
  */
 

@@ -4,17 +4,18 @@ CPULIMIT
  About
 =======
 
-Cpulimit is a tool which attempts to limit the CPU usage of a process (expressed in percentage, not in CPU time). It is useful to control batch jobs, when you don't want them to eat too many CPU cycles . The goal is prevent a process from running for more than a specified time ratio. It does not change the nice value or other scheduling priority settings, but on the real CPU usage. Also, it is able to adapt itself to the overall system load, dynamically and quickly.
+Cpulimit is a tool which attempts to limit the CPU usage of a process (expressed in percentage, not in CPU time). It is useful to control batch jobs, when you don't want them to eat too many CPU cycles. The goal is prevent a process from running for more than a specified time ratio. It does not change the nice value or other scheduling priority settings, but the real CPU usage. Also, it is able to adapt itself to the overall system load, dynamically and quickly.
 The control of the used cpu amount is done sending SIGSTOP and SIGCONT POSIX signals to processes.
 All the children processes and threads of the specified process will share the same percent of CPU.
 
 Developed by Angelo Marletta.
 Please send your feedback, bug reports, feature requests or just thanks.
 
-=====================
- Changelog since 1.1
-=====================
+===========
+ Changelog
+===========
 
+- added support for FreeBSD
 - reorganization of the code, splitted in more source files
 - cpu count detection, i.e. if you have 4 cpu, it is possible to limit up to 400%
 - in order to avoid deadlocks, cpulimit now prevents to limit itself
@@ -25,7 +26,6 @@ Please send your feedback, bug reports, feature requests or just thanks.
 - cpulimit exits if --lazy option is specified and the process terminates
 - target process can be created on-fly given command line
 - light and scalable algorithm for subprocesses detection and limitation
-- mac os support
 - minor enhancements and bugfixes
 
 ============================
