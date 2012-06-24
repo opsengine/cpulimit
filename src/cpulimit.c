@@ -471,7 +471,7 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, ignore_children);
+			limit_process(pid, limit, !ignore_children);
 		}
 		if (lazy) break;
 		sleep(2);
