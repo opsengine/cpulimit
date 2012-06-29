@@ -172,7 +172,7 @@ void update_process_group(struct process_group *pgroup)
 //		struct timeval t;
 //		gettimeofday(&t, NULL);
 //		printf("T=%ld.%ld PID=%d PPID=%d START=%d CPUTIME=%d\n", t.tv_sec, t.tv_usec, tmp_process.pid, tmp_process.ppid, tmp_process.starttime, tmp_process.cputime);
-		int hashkey = pid_hashfn(tmp_process.pid + tmp_process.starttime);
+		int hashkey = pid_hashfn(tmp_process.pid);
 		if (pgroup->proctable[hashkey] == NULL)
 		{
 			//empty bucket
@@ -221,4 +221,14 @@ void update_process_group(struct process_group *pgroup)
 	close_process_iterator(&it);
 	if (dt < MIN_DT) return;
 	pgroup->last_update = now;
+}
+
+int remove_process(struct process_group *pgroup, int pid)
+{
+	int hashkey = pid_hashfn(pid);
+	if (pgroup->proctable[hashkey] == NULL) return 1; //nothing to delete
+	struct list_node *node = (struct list_node*)locate_node(pgroup->proctable[hashkey], &pid);
+	if (node == NULL) return 2;
+	delete_node(pgroup->proctable[hashkey], node);
+	return 0;
 }

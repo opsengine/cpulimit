@@ -50,4 +50,6 @@ int find_process_by_pid(pid_t pid);
 
 int find_process_by_name(const char *process_name);
 
+int remove_process(struct process_group *pgroup, int pid);
+
 #endif

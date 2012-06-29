@@ -143,19 +143,20 @@ int get_next_process(struct process_iterator *it, struct process *p)
 	}
 	if (it->filter->pid > 0 && !it->filter->include_children)
 	{
-		read_process_info(it->filter->pid, p);
+		int ret = read_process_info(it->filter->pid, p);
 		//p->starttime += it->boot_time;
 		closedir(it->dip);
 		it->dip = NULL;
+		if (ret != 0) return -1;
 		return 0;
 	}
-	struct dirent *dit;
+	struct dirent *dit = NULL;
 	//read in from /proc and seek for process dirs
 	while ((dit = readdir(it->dip)) != NULL) {
 		if(strtok(dit->d_name, "0123456789") != NULL)
 			continue;
 		p->pid = atoi(dit->d_name);
-		if (it->filter->pid > 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid)) continue;
+		if (it->filter->pid != 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid)) continue;
 		read_process_info(p->pid, p);
 		//p->starttime += it->boot_time;
 		break;
