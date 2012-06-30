@@ -141,7 +141,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		//end of processes
 		return -1;
 	}
-	if (it->filter->pid > 0 && !it->filter->include_children)
+	if (it->filter->pid != 0 && !it->filter->include_children)
 	{
 		int ret = read_process_info(it->filter->pid, p);
 		//p->starttime += it->boot_time;
