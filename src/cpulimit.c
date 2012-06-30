@@ -27,22 +27,20 @@
  *
  */
 
-#include <getopt.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdlib.h>
-#include <time.h>
 #include <unistd.h>
+#include <getopt.h>
+#include <time.h>
 #include <signal.h>
 #include <string.h>
-#include <dirent.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "process_group.h"
@@ -226,13 +224,19 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 
 		//resume processes
-		for (node = pgroup.proclist->first; node != NULL; node = node->next) {
+		node = pgroup.proclist->first;
+		while (node != NULL)
+		{
+			struct list_node *next_node = node->next;
 			struct process *proc = (struct process*)(node->data);
-			if (kill(proc->pid,SIGCONT)!=0) {
+			if (kill(proc->pid,SIGCONT) != 0) {
 				//process is dead, remove it from family
-				if (verbose) fprintf(stderr, "Process %d dead!\n", proc->pid);
-				//remove_process_from_family(&pf, proc->pid);
+				if (verbose) fprintf(stderr, "SIGCONT failed. Process %d dead!\n", proc->pid);
+				//remove process from group
+				delete_node(pgroup.proclist, node);
+				remove_process(&pgroup, proc->pid);
 			}
+			node = next_node;
 		}
 
 		//now processes are free to run (same working slice for all)
@@ -248,14 +252,20 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 
 		if (tsleep.tv_nsec>0) {
-			//stop only if tsleep>0
-			for (node = pgroup.proclist->first; node != NULL; node = node->next) {
+			//stop processes only if tsleep>0
+			node = pgroup.proclist->first;
+			while (node != NULL)
+			{
+				struct list_node *next_node = node->next;
 				struct process *proc = (struct process*)(node->data);
 				if (kill(proc->pid,SIGSTOP)!=0) {
 					//process is dead, remove it from family
-					if (verbose) fprintf(stderr,"Process %d dead!\n", proc->pid);
-					//remove_process_from_family(&pf, proc->pid);
+					if (verbose) fprintf(stderr, "SIGSTOP failed. Process %d dead!\n", proc->pid);
+					//remove process from group
+					delete_node(pgroup.proclist, node);
+					remove_process(&pgroup, proc->pid);
 				}
+				node = next_node;
 			}
 			//now the processes are sleeping
 			nanosleep(&tsleep,NULL);
@@ -432,7 +442,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, ignore_children);
+				limit_process(child, limit, !ignore_children);
 				exit(0);
 			}
 		}

@@ -203,6 +203,20 @@ void test_process_name(const char * command)
 	close_process_iterator(&it);
 }
 
+void test_process_group_wrong_pid()
+{
+	struct process_group pgroup;
+	assert(init_process_group(&pgroup, -1, 0) == 0);
+	assert(pgroup.proclist->count == 0);
+	update_process_group(&pgroup);
+	assert(pgroup.proclist->count == 0);
+	assert(init_process_group(&pgroup, 9999999, 0) == 0);
+	assert(pgroup.proclist->count == 0);
+	update_process_group(&pgroup);
+	assert(pgroup.proclist->count == 0);
+	assert(close_process_group(&pgroup) == 0);
+}
+
 int main(int argc, char **argv)
 {
 //	printf("Pid %d\n", getpid());
@@ -212,6 +226,7 @@ int main(int argc, char **argv)
 	test_process_group_all();
 	test_process_group_single(0);
 	test_process_group_single(1);
+	test_process_group_wrong_pid();
 	test_process_name(argv[0]);
 	return 0;
 }
