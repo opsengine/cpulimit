@@ -15,8 +15,6 @@
  */
 
 #include <sys/types.h>
-#include <config.h>
-#include <compat.h>
 
 /*
  * Reverse memchr()
