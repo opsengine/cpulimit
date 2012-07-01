@@ -46,6 +46,10 @@
 #include "process_group.h"
 #include "list.h"
 
+#ifdef __APPLE__
+#include "memrchr.c"
+#endif
+
 //some useful macro
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
