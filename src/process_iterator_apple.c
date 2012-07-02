@@ -55,7 +55,7 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process) {
 
 static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti) {
 	int bytes;
-	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(ti));
+	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(*ti));
 	if (bytes <= 0) {
 		fprintf(stderr, "proc_pidinfo: %s\n", strerror(errno));
 		return -1;
@@ -67,24 +67,25 @@ static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti) {
 }
 
 int get_next_process(struct process_iterator *it, struct process *p) {
-	struct proc_taskallinfo *ti = NULL;
 	if (it->i == it->count) return -1;
 	if (it->filter->pid != 0 && !it->filter->include_children) {
-		if (get_process_pti(it->filter->pid, ti) != 0) {
+		struct proc_taskallinfo ti;
+		if (get_process_pti(it->filter->pid, &ti) != 0) {
 			it->i = it->count = 0;
 			return -1;
 		}
 		it->i = it->count = 1;
-		return pti2proc(ti, p);
+		return pti2proc(&ti, p);
 	}
 	while (it->i < it->count) {
-		get_process_pti(it->pidlist[it->i], ti);
-		if (ti == NULL || ti->pbsd.pbi_flags & PROC_FLAG_SYSTEM) {
+		struct proc_taskallinfo ti;
+		get_process_pti(it->pidlist[it->i], &ti);
+		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) {
 			it->i++;
 			continue;
 		}
 		if (it->filter->pid != 0 && it->filter->include_children) {
-			pti2proc(ti, p);
+			pti2proc(&ti, p);
 			it->i++;
 			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
 				continue;
@@ -92,7 +93,7 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 		}
 		else if (it->filter->pid == 0)
 		{
-			pti2proc(ti, p);
+			pti2proc(&ti, p);
 			it->i++;
 			return 0;
 		}
