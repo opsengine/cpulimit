@@ -12,7 +12,7 @@ endif
 
 all::	$(TARGETS)
 
-busy:	busy.c $(SYSLIBS)
+busy:	busy.c
 	$(CC) -o busy busy.c $(SYSLIBS) $(CFLAGS)
 
 process_iterator_test: process_iterator_test.c $(LIBS)
