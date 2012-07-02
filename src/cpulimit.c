@@ -147,6 +147,26 @@ static int get_ncpu() {
 	return ncpu;
 }
 
+int get_pid_max()
+{
+#ifdef __linux__
+	//read /proc/sys/kernel/pid_max
+	static char buffer[1024];
+	FILE *fd = fopen("/proc/sys/kernel/pid_max", "r");
+	if (fd==NULL) return -1;
+	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
+		fclose(fd);
+		return -1;
+	}
+	fclose(fd);
+	return atoi(buffer);
+#elif defined __FreeBSD__
+	return 99998;
+#elif defined __APPLE__
+	return 99998;
+#endif
+}
+
 void limit_process(pid_t pid, double limit, int include_children)
 {
 	//slice of the slot in which the process is allowed to run
@@ -347,7 +367,7 @@ int main(int argc, char **argv) {
 		}
 	} while(next_option != -1);
 
-	if (pid_ok && (pid <= 1 || pid >= 65536)) {
+	if (pid_ok && (pid <= 1 || pid >= get_pid_max())) {
 		fprintf(stderr,"Error: Invalid value for argument PID\n");
 		print_usage(stderr, 1);
 		exit(1);
