@@ -47,7 +47,7 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process) {
 	process->pid = ti->pbsd.pbi_pid;
 	process->ppid = ti->pbsd.pbi_ppid;
 	process->starttime = ti->pbsd.pbi_start_tvsec;
-	process->cputime = (ti->ptinfo.pti_total_user + ti->ptinfo.pti_total_system) / 1000;
+	process->cputime = (ti->ptinfo.pti_total_user + ti->ptinfo.pti_total_system) / 1000000;
 	bytes = strlen(ti->pbsd.pbi_comm);
 	memcpy(process->command, ti->pbsd.pbi_comm, (bytes < PATH_MAX ? bytes : PATH_MAX) + 1);
 	return 0;
