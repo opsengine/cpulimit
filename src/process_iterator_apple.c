@@ -23,6 +23,31 @@
 #include <stdio.h>
 #include <libproc.h>
 
+int unique_nonzero_ints(int* arr_in, int len_in, int* arr_out) {
+	int* source = arr_in;
+	if (arr_out == NULL) return -1;
+	if (arr_in == arr_out) {
+		source = malloc(sizeof(int)*len_in);
+		memcpy(source, arr_in, sizeof(int)*len_in);
+		memset(arr_out, -1, sizeof(int)*len_in);
+	}
+	int len_out = 0;
+	for (int i=0; i<len_in; i++) {
+		int found = 0;
+		if (source[i] == 0) continue;
+		for (int j=0; !found && j<len_out; j++) {
+			found = (source[i] == arr_out[j]) ? 1 : 0;
+		}
+		if (!found) {
+			arr_out[len_out++] = source[i];
+		}
+	}
+	if (arr_in == arr_out) {
+		free(source);
+	}
+	return len_out-1;
+}
+
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter) {
 	it->i = 0;
 	/* Find out how much to allocate for it->pidlist */
@@ -38,6 +63,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		fprintf(stderr, "proc_listpids: %s\n", strerror(errno));
 		return -1;
 	}
+	it->count = unique_nonzero_ints(it->pidlist, it->count, it->pidlist);
 	it->filter = filter;
 	return 0;
 }
@@ -81,7 +107,10 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 	}
 	while (it->i < it->count) {
 		struct proc_taskallinfo ti;
-		get_process_pti(it->pidlist[it->i], &ti);
+		if (get_process_pti(it->pidlist[it->i], &ti) != 0) {
+			it->i++;
+			continue;
+		}
 		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) {
 			it->i++;
 			continue;
@@ -89,6 +118,8 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 		if (it->filter->pid != 0 && it->filter->include_children) {
 			pti2proc(&ti, p);
 			it->i++;
+			if (p->pid != it->pidlist[it->i - 1]) // I don't know why this can happen
+				continue;
 			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
 				continue;
 			return 0;

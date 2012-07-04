@@ -28,6 +28,10 @@
 #include <signal.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include <libgen.h>
+#endif
+
 #include <process_iterator.h>
 #include <process_group.h>
 
@@ -198,7 +202,13 @@ void test_process_name(const char * command)
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
+	#ifdef __APPLE__
+	// proc_pidinfo only gives us the first 15 chars
+	// of the basename of the command on OSX.
+	assert(strncmp(basename((char*)command), process.command, 15) == 0);
+	#else
 	assert(strncmp(command, process.command, strlen(process.command)) == 0);
+	#endif
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);
 }
