@@ -57,7 +57,9 @@ static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti) {
 	int bytes;
 	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(*ti));
 	if (bytes <= 0) {
-		fprintf(stderr, "proc_pidinfo: %s\n", strerror(errno));
+		if (!(errno & (EPERM | ESRCH))) {
+			fprintf(stderr, "proc_pidinfo: %s\n", strerror(errno));
+		}
 		return -1;
 	} else if (bytes < sizeof(ti)) {
 		fprintf(stderr, "proc_pidinfo: too few bytes; expected %ld, got %d\n", sizeof(ti), bytes);
