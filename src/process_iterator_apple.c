@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * 
+ * Author: Simon Sigurdhsson
+ *
  */
 
 #include <errno.h>
@@ -32,10 +35,11 @@ int unique_nonzero_ints(int* arr_in, int len_in, int* arr_out) {
 		memset(arr_out, -1, sizeof(int)*len_in);
 	}
 	int len_out = 0;
-	for (int i=0; i<len_in; i++) {
+        int i, j;
+	for (i=0; i<len_in; i++) {
 		int found = 0;
 		if (source[i] == 0) continue;
-		for (int j=0; !found && j<len_out; j++) {
+		for (j=0; !found && j<len_out; j++) {
 			found = (source[i] == arr_out[j]) ? 1 : 0;
 		}
 		if (!found) {
