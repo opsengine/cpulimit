@@ -89,7 +89,7 @@ int find_process_by_name(const char *process_name)
 			}
 		}
 	}
-	if (close_process_iterator(&it) != 1) exit(1);
+	if (close_process_iterator(&it) != 0) exit(1);
 	if (found == 1) {
 		//ok, the process was found
 		return pid;
