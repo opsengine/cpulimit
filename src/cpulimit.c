@@ -89,11 +89,14 @@ static void quit(int sig)
 {
 	//let all the processes continue if stopped
 	struct list_node *node = NULL;
-	for (node=pgroup.proclist->first; node!= NULL; node=node->next) {
-		struct process *p = (struct process*)(node->data);
-		kill(p->pid, SIGCONT);
+	if (pgroup.proclist != NULL)
+	{
+		for (node = pgroup.proclist->first; node != NULL; node = node->next) {
+			struct process *p = (struct process*)(node->data);
+			kill(p->pid, SIGCONT);
+		}
+		close_process_group(&pgroup);
 	}
-	close_process_group(&pgroup);
 	//fix ^C little problem
 	printf("\r");
 	fflush(stdout);
