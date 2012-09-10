@@ -26,12 +26,12 @@ Install instructions
 On Linux/OS X:
 
     $ make
-    $ cp src/cpulimit /usr/bin
+    # cp src/cpulimit /usr/bin
 
 On FreeBSD:
 
     $ gmake
-    $ cp src/cpulimit /usr/bin
+    # cp src/cpulimit /usr/bin
 
 Run unit tests:
 
