@@ -46,6 +46,10 @@
 #include "process_group.h"
 #include "list.h"
 
+#ifdef HAVE_SYS_SYSINFO_H
+#include <sys/sysinfo.h>
+#endif
+
 #ifdef __APPLE__
 #include "memrchr.c"
 #endif
@@ -150,6 +154,8 @@ static int get_ncpu() {
 	int mib[2] = {CTL_HW, HW_NCPU};
 	size_t len = sizeof(ncpu);
 	sysctl(mib, 2, &ncpu, &len, NULL, 0);
+#elif defined _GNU_SOURCE
+	ncpu = get_nprocs();
 #endif
 	return ncpu;
 }
