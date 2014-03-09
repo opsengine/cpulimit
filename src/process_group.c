@@ -48,10 +48,7 @@ int find_process_by_pid(pid_t pid)
 //         negative pid, if it is found but it's not possible to control it
 int find_process_by_name(const char *process_name)
 {
-	//whether the variable process_name is the absolute path or not
-	int is_absolute_path = process_name[0] == '/';
-	//flag indicating if the a process with given name was found
-	int found = 0;
+	//pid of the target process
 	pid_t pid = -1;
 
 	//process iterator
@@ -63,47 +60,22 @@ int find_process_by_name(const char *process_name)
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &proc) != -1)
 	{
-		pid = proc.pid;
-		int size = strlen(proc.command);
-
-		found = 0;
-		if (is_absolute_path && strncmp(proc.command, process_name, size)==0 && size==strlen(process_name)) {
-			//process found
-			found = 1;
-		}
-		else {
-			//process found
-			if (strncmp(proc.command + size - strlen(process_name), process_name, strlen(process_name))==0) {
-				found = 1;
-			}
-		}
-		if (found==1) {
-			if (kill(pid,SIGCONT)==0) {
-				//process is ok!
-				break;
-			}
-			else {
-				//we don't have permission to send signal to that process
-				//so, don't exit from the loop and look for another one with the same name
-				found = -1;
-			}
+		//process found
+		if (strncmp(basename(proc.command), process_name, strlen(process_name))==0 && kill(pid,SIGCONT)==0) {
+			//process is ok!
+			pid = proc.pid;
+			break;
 		}
 	}
-	if (close_process_iterator(&it) != 1) exit(1);
-	if (found == 1) {
+	if (close_process_iterator(&it) != 0) exit(1);
+	if (pid >= 0) {
 		//ok, the process was found
 		return pid;
 	}
-	else if (found == 0) {
-		//no process found
+	else {
+		//process not found
 		return 0;
 	}
-	else if (found == -1) {
-		//the process was found, but we haven't permission to control it
-		return -pid;
-	}
-	//this MUST NOT happen
-	exit(2);
 }
 
 int init_process_group(struct process_group *pgroup, int target_pid, int include_children)

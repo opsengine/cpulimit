@@ -46,6 +46,10 @@
 #include "process_group.h"
 #include "list.h"
 
+#ifdef HAVE_SYS_SYSINFO_H
+#include <sys/sysinfo.h>
+#endif
+
 #ifdef __APPLE__
 #include "memrchr.c"
 #endif
@@ -88,14 +92,15 @@ int lazy = 0;
 static void quit(int sig)
 {
 	//let all the processes continue if stopped
-        if (pgroup.proclist != NULL){
-                struct list_node *node = NULL;
-                for (node=pgroup.proclist->first; node!= NULL; node=node->next) {
-                        struct process *p = (struct process*)(node->data);
-                        kill(p->pid, SIGCONT);
-                }
-                close_process_group(&pgroup);
-        }
+	struct list_node *node = NULL;
+	if (pgroup.proclist != NULL)
+	{
+		for (node = pgroup.proclist->first; node != NULL; node = node->next) {
+			struct process *p = (struct process*)(node->data);
+			kill(p->pid, SIGCONT);
+		}
+		close_process_group(&pgroup);
+	}
 	//fix ^C little problem
 	printf("\r");
 	fflush(stdout);
@@ -115,7 +120,7 @@ static void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
 	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
-	fprintf(stream, "      -i, --ignore-children  don't limit children processes\n");
+	fprintf(stream, "      -i, --include-children limit also the children processes\n");
 	fprintf(stream, "      -h, --help             display this help and exit\n");
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
 	fprintf(stream, "      -p, --pid=N            pid of the process (implies -z)\n");
@@ -149,6 +154,8 @@ static int get_ncpu() {
 	int mib[2] = {CTL_HW, HW_NCPU};
 	size_t len = sizeof(ncpu);
 	sysctl(mib, 2, &ncpu, &len, NULL, 0);
+#elif defined _GNU_SOURCE
+	ncpu = get_nprocs();
 #endif
 	return ncpu;
 }
@@ -309,7 +316,7 @@ int main(int argc, char **argv) {
 	int pid_ok = 0;
 	int limit_ok = 0;
 	pid_t pid = 0;
-	int ignore_children = 0;
+	int include_children = 0;
 
 	//get program name
 	char *p = (char*)memrchr(argv[0], (unsigned int)'/', strlen(argv[0]));
@@ -331,7 +338,7 @@ int main(int argc, char **argv) {
 		{ "limit",      required_argument, NULL, 'l' },
 		{ "verbose",    no_argument,       NULL, 'v' },
 		{ "lazy",       no_argument,       NULL, 'z' },
-		{ "ignore-children", no_argument,  NULL, 'i' },
+		{ "include-children", no_argument,  NULL, 'i' },
 		{ "help",       no_argument,       NULL, 'h' },
 		{ 0,            0,                 0,     0  }
 	};
@@ -358,7 +365,7 @@ int main(int argc, char **argv) {
 				lazy = 1;
 				break;
 			case 'i':
-				ignore_children = 1;
+				include_children = 1;
 				break;
 			case 'h':
 				print_usage(stdout, 1);
@@ -468,7 +475,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, !ignore_children);
+				limit_process(child, limit, include_children);
 				exit(0);
 			}
 		}
@@ -507,7 +514,7 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, ignore_children);
+			limit_process(pid, limit, include_children);
 		}
 		if (lazy) break;
 		sleep(2);
