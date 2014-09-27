@@ -66,7 +66,6 @@ void delete_node(struct list *l,struct list_node *node) {
 	}
 	l->count--;
 	free(node);
-	node = NULL;
 }
 
 void destroy_node(struct list *l,struct list_node *node) {
@@ -75,7 +74,7 @@ void destroy_node(struct list *l,struct list_node *node) {
 	delete_node(l,node);
 }
 
-int is_EMPTYLIST_list(struct list *l) {
+int is_empty_list(struct list *l) {
 	return (l->count==0?TRUE:FALSE);
 }
 
@@ -123,8 +122,8 @@ void *locate_elem(struct list *l,void *elem) {
 }
 
 void clear_list(struct list *l) {
-	struct list_node *tmp;
 	while(l->first!=EMPTYLIST) {
+		struct list_node *tmp;
 		tmp=l->first;
 		l->first=l->first->next;
 		free(tmp);
@@ -135,8 +134,8 @@ void clear_list(struct list *l) {
 }
 
 void destroy_list(struct list *l) {
-	struct list_node *tmp;
 	while(l->first!=EMPTYLIST) {
+		struct list_node *tmp;
 		tmp=l->first;
 		l->first=l->first->next;
 		free(tmp->data);
