@@ -147,7 +147,7 @@ static void increase_priority() {
 
 /* Get the number of CPUs */
 static int get_ncpu() {
-	int ncpu = -1;
+	int ncpu;
 #ifdef _SC_NPROCESSORS_ONLN
 	ncpu = sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined __APPLE__
@@ -156,6 +156,8 @@ static int get_ncpu() {
 	sysctl(mib, 2, &ncpu, &len, NULL, 0);
 #elif defined _GNU_SOURCE
 	ncpu = get_nprocs();
+#else
+	ncpu = -1;
 #endif
 	return ncpu;
 }
