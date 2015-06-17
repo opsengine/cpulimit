@@ -43,6 +43,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#ifdef __APPLE__ || __FREEBSD__
+#include <libgen.h>
+#endif
+
 #include "process_group.h"
 #include "list.h"
 
