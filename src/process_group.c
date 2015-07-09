@@ -25,6 +25,10 @@
 #include <sys/time.h>
 #include <signal.h>
 
+#if defined(__APPLE__) || defined(__FREEBSD__)
+#include <libgen.h>
+#endif
+
 #include <assert.h>
 
 #include "process_iterator.h"

@@ -28,7 +28,7 @@
 #include <signal.h>
 #include <string.h>
 
-#ifdef __APPLE__ || __FREEBSD__
+#if defined(__APPLE__) || defined(__FREEBSD__)
 #include <libgen.h>
 #endif
 
