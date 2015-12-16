@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -121,11 +121,12 @@ static void print_usage(FILE *stream, int exit_code)
 {
 	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
-	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
-	fprintf(stream, "      -v, --verbose          show control statistics\n");
-	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
-	fprintf(stream, "      -i, --include-children limit also the children processes\n");
-	fprintf(stream, "      -h, --help             display this help and exit\n");
+	fprintf(stream, "      -l, --limit=N                percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
+	fprintf(stream, "      -v, --verbose                show control statistics\n");
+	fprintf(stream, "      -z, --lazy                   exit if there is no target process, or if it dies\n");
+	fprintf(stream, "      -i, --include-children       limit also the children processes\n");
+	fprintf(stream, "      -m, --minimum-limited-cpu=M  minimum percentage of cpu of target processes\n");
+	fprintf(stream, "      -h, --help                   display this help and exit\n");
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
 	fprintf(stream, "      -p, --pid=N            pid of the process (implies -z)\n");
 	fprintf(stream, "      -e, --exe=FILE         name of the executable program file or path name\n");
@@ -139,7 +140,7 @@ static void increase_priority() {
 	int old_priority = getpriority(PRIO_PROCESS, 0);
 	int priority = old_priority;
 	while (setpriority(PRIO_PROCESS, 0, priority-1) == 0 && priority>MAX_PRIORITY) {
-		priority--;	
+		priority--;
 	}
 	if (priority != old_priority) {
 		if (verbose) printf("Priority changed to %d\n", priority);
@@ -186,7 +187,7 @@ int get_pid_max()
 #endif
 }
 
-void limit_process(pid_t pid, double limit, int include_children)
+void limit_process(pid_t pid, double limit, int include_children, float minimum_cpu_usage)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -200,7 +201,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 	memset(&twork, 0, sizeof(struct timespec));
 	memset(&tsleep, 0, sizeof(struct timespec));
 	memset(&startwork, 0, sizeof(struct timeval));
-	memset(&endwork, 0, sizeof(struct timeval));	
+	memset(&endwork, 0, sizeof(struct timeval));
 	//last working time in microseconds
 	unsigned long workingtime = 0;
 	//generic list item
@@ -210,7 +211,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 
 	//get a better priority
 	increase_priority();
-	
+
 	//build the family
 	init_process_group(&pgroup, pid, include_children);
 
@@ -226,7 +227,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			if (verbose) printf("No more processes.\n");
 			break;
 		}
-		
+
 		//total cpu actual usage (range 0-1)
 		//1 means that the processes are using 100% cpu
 		double pcpu = -1;
@@ -283,7 +284,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 		nanosleep(&twork, NULL);
 		gettimeofday(&endwork, NULL);
 		workingtime = timediff(&endwork, &startwork);
-		
+
 		long delay = workingtime - twork.tv_nsec/1000;
 		if (c>0 && delay>10000) {
 			//delay is too much! signal to user?
@@ -297,7 +298,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			{
 				struct list_node *next_node = node->next;
 				struct process *proc = (struct process*)(node->data);
-				if (kill(proc->pid,SIGSTOP)!=0) {
+				if ( proc->cpu_usage > minimum_cpu_usage && kill(proc->pid,SIGSTOP)!=0) {
 					//process is dead, remove it from family
 					if (verbose) fprintf(stderr, "SIGSTOP failed. Process %d dead!\n", proc->pid);
 					//remove process from group
@@ -322,6 +323,7 @@ int main(int argc, char **argv) {
 	int pid_ok = 0;
 	int limit_ok = 0;
 	pid_t pid = 0;
+	float minimum_cpu_usage=0;
 	int include_children = 0;
 
 	//get program name
@@ -334,9 +336,9 @@ int main(int argc, char **argv) {
 
 	//parse arguments
 	int next_option;
-    int option_index = 0;
+	int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "+p:e:l:vzih";
+	const char* short_options = "+p:e:l:vzim:h";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL, 'p' },
@@ -345,6 +347,7 @@ int main(int argc, char **argv) {
 		{ "verbose",    no_argument,       NULL, 'v' },
 		{ "lazy",       no_argument,       NULL, 'z' },
 		{ "include-children", no_argument,  NULL, 'i' },
+		{ "minimum-limited-cpu", no_argument,  NULL, 'm' },
 		{ "help",       no_argument,       NULL, 'h' },
 		{ 0,            0,                 0,     0  }
 	};
@@ -372,6 +375,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'i':
 				include_children = 1;
+				break;
+			case 'm':
+				minimum_cpu_usage = atof(optarg);
 				break;
 			case 'h':
 				print_usage(stdout, 1);
@@ -413,7 +419,7 @@ int main(int argc, char **argv) {
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	
+
 	if (exe_ok + pid_ok + command_mode > 1) {
 		fprintf(stderr,"Error: You must specify exactly one target process, either by name, pid, or command line\n");
 		print_usage(stderr, 1);
@@ -446,7 +452,7 @@ int main(int argc, char **argv) {
 			}
 			printf("'\n");
 		}
-		
+
 		int child = fork();
 		if (child < 0) {
 			exit(EXIT_FAILURE);
@@ -481,7 +487,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, include_children);
+				limit_process(child, limit, include_children, minimum_cpu_usage);
 				exit(0);
 			}
 		}
@@ -520,11 +526,11 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, include_children);
+			limit_process(pid, limit, include_children, minimum_cpu_usage);
 		}
 		if (lazy) break;
 		sleep(2);
 	};
-	
+
 	exit(0);
 }
