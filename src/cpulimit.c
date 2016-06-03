@@ -38,7 +38,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#ifdef ANDROID
+#include <linux/sysctl.h>
+#else
 #include <sys/sysctl.h>
+#endif
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
