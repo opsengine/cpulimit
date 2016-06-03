@@ -30,6 +30,11 @@ On FreeBSD:
     $ gmake
     # cp src/cpulimit /usr/bin
 
+On Android (tested with NDK r11c, API >=22):
+
+    $ ndk-build  APP_BUILD_SCRIPT=$(pwd)/Android.mk NDK_PROJECT_PATH=$(pwd) APP_PLATFORM=android-22
+    # adb push src/cpulimit /data/cpulimit
+
 Run unit tests:
 
     $ ./tests/process_iterator_test
