@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -139,7 +139,7 @@ static void increase_priority() {
 	int old_priority = getpriority(PRIO_PROCESS, 0);
 	int priority = old_priority;
 	while (setpriority(PRIO_PROCESS, 0, priority-1) == 0 && priority>MAX_PRIORITY) {
-		priority--;	
+		priority--;
 	}
 	if (priority != old_priority) {
 		if (verbose) printf("Priority changed to %d\n", priority);
@@ -200,7 +200,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 	memset(&twork, 0, sizeof(struct timespec));
 	memset(&tsleep, 0, sizeof(struct timespec));
 	memset(&startwork, 0, sizeof(struct timeval));
-	memset(&endwork, 0, sizeof(struct timeval));	
+	memset(&endwork, 0, sizeof(struct timeval));
 	//last working time in microseconds
 	unsigned long workingtime = 0;
 	//generic list item
@@ -210,7 +210,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 
 	//get a better priority
 	increase_priority();
-	
+
 	//build the family
 	init_process_group(&pgroup, pid, include_children);
 
@@ -226,7 +226,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			if (verbose) printf("No more processes.\n");
 			break;
 		}
-		
+
 		//total cpu actual usage (range 0-1)
 		//1 means that the processes are using 100% cpu
 		double pcpu = -1;
@@ -283,7 +283,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 		nanosleep(&twork, NULL);
 		gettimeofday(&endwork, NULL);
 		workingtime = timediff(&endwork, &startwork);
-		
+
 		long delay = workingtime - twork.tv_nsec/1000;
 		if (c>0 && delay>10000) {
 			//delay is too much! signal to user?
@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	
+
 	if (exe_ok + pid_ok + command_mode > 1) {
 		fprintf(stderr,"Error: You must specify exactly one target process, either by name, pid, or command line\n");
 		print_usage(stderr, 1);
@@ -446,7 +446,7 @@ int main(int argc, char **argv) {
 			}
 			printf("'\n");
 		}
-		
+
 		int child = fork();
 		if (child < 0) {
 			exit(EXIT_FAILURE);
@@ -525,6 +525,6 @@ int main(int argc, char **argv) {
 		if (lazy) break;
 		sleep(2);
 	};
-	
+
 	exit(0);
 }
