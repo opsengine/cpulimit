@@ -19,12 +19,12 @@ The latest available code is here: https://github.com/denji/cpulimit
 
 ## Install instructions
 
-On Linux/OS X:
+On Linux/macOS:
 
     $ make
     # cp src/cpulimit /usr/bin
 
-On FreeBSD:
+On *BSD:
 
     $ gmake
     # cp src/cpulimit /usr/bin
