@@ -31,7 +31,7 @@ On *BSD:
 
 Run unit tests:
 
-    $ ./tests/process_iterator_test
+    $ ./test/process_iterator_test
 
 
 ## Contributions
