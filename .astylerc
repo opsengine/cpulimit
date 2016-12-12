@@ -1,0 +1,23 @@
+# astylerc
+align-pointer=name
+align-reference=name
+break-after-logical
+#indent=spaces=2
+max-code-length=120
+style=google
+suffix=none
+
+# Indent
+indent-preproc-block
+
+# Padding
+pad-header
+unpad-paren
+
+# Formatting:
+add-brackets
+#convert-tabs
+
+# Output:
+formatted
+
