@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #ifndef __APPLE__
-#include <sys/procfs.h>
+    #include <sys/procfs.h>
 #endif
 #include <time.h>
 #include "process_iterator.h"
@@ -32,18 +32,18 @@
 
 #ifdef __linux__
 
-#include "process_iterator_linux.c"
+    #include "process_iterator_linux.c"
 
 #elif defined __FreeBSD__
 
-#include "process_iterator_freebsd.c"
+    #include "process_iterator_freebsd.c"
 
 #elif defined __APPLE__
 
-#include "process_iterator_apple.c"
+    #include "process_iterator_apple.c"
 
 #else
 
-#error Platform not supported
+    #error Platform not supported
 
 #endif
