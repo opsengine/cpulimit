@@ -101,7 +101,7 @@ static void quit(int sig)
 	{
 		for (node = pgroup.proclist->first; node != NULL; node = node->next) {
 			struct process *p = (struct process*)(node->data);
-			kill(p->pid, SIGCONT);
+			kill(p->pid, sig);
 		}
 		close_process_group(&pgroup);
 	}
