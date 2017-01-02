@@ -20,10 +20,15 @@ https://github.com/opsengine/cpulimit
 Install instructions
 --------------------
 
-On Linux/OS X:
+On Linux:
 
     $ make
     # cp src/cpulimit /usr/bin
+
+On OS X:
+
+    $ make
+    # cp src/cpulimit /usr/local/bin
 
 On FreeBSD:
 
