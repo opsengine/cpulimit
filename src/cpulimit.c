@@ -38,7 +38,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/sysctl.h>
+//#include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -122,6 +122,7 @@ static void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
+	fprintf(stream, "      -L, --load=N           load target (ajust automaticaly %% of cpu for targeting this load) in this mode -l is just used at initial cpu %%\n");
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
 	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
 	fprintf(stream, "      -i, --include-children limit also the children processes\n");
@@ -186,7 +187,7 @@ int get_pid_max()
 #endif
 }
 
-void limit_process(pid_t pid, double limit, int include_children)
+void limit_process(pid_t pid, double limit, double loadlimit, int include_children)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -207,6 +208,8 @@ void limit_process(pid_t pid, double limit, int include_children)
 	struct list_node *node;
 	//counter
 	int c = 0;
+
+	double load[3];
 
 	//get a better priority
 	increase_priority();
@@ -241,6 +244,14 @@ void limit_process(pid_t pid, double limit, int include_children)
 			pcpu += proc->cpu_usage;
 		}
 
+		if(loadlimit > -1){
+			getloadavg(load,3);
+			limit += 0.001 * (loadlimit - load[0]);
+			if(limit > get_ncpu()) limit = get_ncpu();
+			if(limit < 0) limit = 0;
+		}
+
+
 		//adjust work and sleep time slices
 		if (pcpu < 0) {
 			//it's the 1st cycle, initialize workingrate
@@ -250,34 +261,41 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 		else {
 			//adjust workingrate
-			workingrate = MIN(workingrate / pcpu * limit, 1);
+			workingrate = limit == 0 ? 0 : MAX(MIN(workingrate / pcpu * limit, 1),0.0001);
 			twork.tv_nsec = TIME_SLOT * 1000 * workingrate;
 		}
 		tsleep.tv_nsec = TIME_SLOT * 1000 - twork.tv_nsec;
 
+
+
+
 		if (verbose) {
 			if (c%200==0)
 				printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n");
-			if (c%10==0 && c>0)
+			if (c%10==0 && c>0){
+				if(loadlimit > -1) printf("target: %0.2f load: %0.2f %0.2f %0.2f new cpu limit: %0.2f%%\n", loadlimit, load[0], load[1], load[2], limit*100);
 				printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n", pcpu*100, twork.tv_nsec/1000, tsleep.tv_nsec/1000, workingrate*100);
+			}
 		}
 
 		//resume processes
 		node = pgroup.proclist->first;
-		while (node != NULL)
-		{
-			struct list_node *next_node = node->next;
-			struct process *proc = (struct process*)(node->data);
-			if (kill(proc->pid,SIGCONT) != 0) {
-				//process is dead, remove it from family
-				if (verbose) fprintf(stderr, "SIGCONT failed. Process %d dead!\n", proc->pid);
-				//remove process from group
-				delete_node(pgroup.proclist, node);
-				remove_process(&pgroup, proc->pid);
+		if(twork.tv_nsec > 0){
+			while (node != NULL)
+			{
+				struct list_node *next_node = node->next;
+				struct process *proc = (struct process*)(node->data);
+				if (kill(proc->pid,SIGCONT) != 0) {
+					//process is dead, remove it from family
+					if (verbose) fprintf(stderr, "SIGCONT failed. Process %d dead!\n", proc->pid);
+					//remove process from group
+					delete_node(pgroup.proclist, node);
+					remove_process(&pgroup, proc->pid);
+				}
+				node = next_node;
 			}
-			node = next_node;
 		}
-
+	
 		//now processes are free to run (same working slice for all)
 		gettimeofday(&startwork, NULL);
 		nanosleep(&twork, NULL);
@@ -318,6 +336,7 @@ int main(int argc, char **argv) {
 	//argument variables
 	const char *exe = NULL;
 	int perclimit = 0;
+	double loadlimit = -1;
 	int exe_ok = 0;
 	int pid_ok = 0;
 	int limit_ok = 0;
@@ -336,12 +355,13 @@ int main(int argc, char **argv) {
 	int next_option;
     int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "+p:e:l:vzih";
+	const char* short_options = "+p:e:l:L:vzih";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL, 'p' },
 		{ "exe",        required_argument, NULL, 'e' },
 		{ "limit",      required_argument, NULL, 'l' },
+		{ "load",      required_argument, NULL, 'L' },
 		{ "verbose",    no_argument,       NULL, 'v' },
 		{ "lazy",       no_argument,       NULL, 'z' },
 		{ "include-children", no_argument,  NULL, 'i' },
@@ -362,6 +382,10 @@ int main(int argc, char **argv) {
 				break;
 			case 'l':
 				perclimit = atoi(optarg);
+				limit_ok = 1;
+				break;
+			case 'L':
+				loadlimit = atof(optarg);
 				limit_ok = 1;
 				break;
 			case 'v':
@@ -481,7 +505,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, include_children);
+				limit_process(child, limit, loadlimit, include_children);
 				exit(0);
 			}
 		}
@@ -520,7 +544,7 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, include_children);
+			limit_process(pid, limit, loadlimit, include_children);
 		}
 		if (lazy) break;
 		sleep(2);
