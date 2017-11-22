@@ -4,5 +4,6 @@ default: all
 	cd src && $(MAKE) $@
 	cd tests && $(MAKE) $@
 
+.PHONY: install
 install:
-	sudo cp src/cpulimit /usr/local/bin
+	cp src/cpulimit /usr/local/bin
