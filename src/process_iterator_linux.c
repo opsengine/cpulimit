@@ -98,6 +98,7 @@ static int read_process_info(pid_t pid, struct process *p)
 	//read command line
 	sprintf(exefile,"/proc/%d/cmdline", p->pid);
 	fd = fopen(exefile, "r");
+	if (fd==NULL) return -1;
 	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
 		fclose(fd);
 		return -1;
