@@ -1,5 +1,6 @@
 *.o
 *~
 src/cpulimit
+src/cpulimit.1
 busy
 process_iterator_test

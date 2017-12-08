@@ -1,10 +1,16 @@
 CC?=gcc
 CFLAGS?=-O2 -Wall -g -D_GNU_SOURCE
-TARGETS=cpulimit
+BIN_TARGET=cpulimit
+MAN_TARGET=$(BIN_TARGET).$(MAN_SEC)
+TARGETS=$(BIN_TARGET) $(MAN_TARGET)
 LIBS=list.o process_iterator.o process_group.o
 UNAME := $(shell uname)
 PREFIX?=/usr/local
 BINDIR?=$(PREFIX)/bin
+HELP2MAN := $(shell which help2man)
+MAN_NAME := "CPU Utilization Limiter"
+MAN_SEC := 1
+MAN_SRC := $(shell git remote get-url origin)
 
 ifeq ($(UNAME), FreeBSD)
 LIBS+=-lkvm
@@ -20,6 +26,9 @@ install: $(TARGETS)
 
 cpulimit:	cpulimit.c $(LIBS)
 	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
+
+$(MAN_TARGET): cpulimit $(HELP2MAN)
+	$(HELP2MAN) -n $(MAN_NAME) -s $(MAN_SEC) -s $(MAN_SRC) -N ./$< > $@
 
 process_iterator.o: process_iterator.c process_iterator.h
 	$(CC) -c process_iterator.c $(CFLAGS)
