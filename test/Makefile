@@ -2,6 +2,7 @@ CC?=gcc
 CFLAGS?=-Wall -g
 TARGETS=busy process_iterator_test
 SRC=../src
+STRIP := $(shell which strip)
 SYSLIBS?=-lpthread
 LIBS=$(SRC)/list.o $(SRC)/process_iterator.o $(SRC)/process_group.o
 UNAME := $(shell uname)
@@ -14,6 +15,9 @@ all::	$(TARGETS)
 
 static:
 	$(MAKE) all CFLAGS="$(CFLAGS) --static"
+
+strip: $(TARGETS)
+	$(STRIP) $(TARGETS)
 
 install::
 

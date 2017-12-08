@@ -8,6 +8,7 @@ UNAME := $(shell uname)
 PREFIX?=/usr/local
 BINDIR?=$(PREFIX)/bin
 HELP2MAN := $(shell which help2man)
+STRIP := $(shell which strip)
 MAN_NAME := "CPU Utilization Limiter"
 MAN_SEC := 1
 MAN_SRC := $(shell git remote get-url origin)
@@ -21,13 +22,16 @@ all::	$(TARGETS) $(LIBS)
 static:
 	$(MAKE) all CFLAGS="$(CFLAGS) --static"
 
+strip: $(BIN_TARGET)
+	$(STRIP) $<
+
 install: $(TARGETS)
 	install $^ $(BINDIR)
 
-cpulimit:	cpulimit.c $(LIBS)
+$(BIN_TARGET):	cpulimit.c $(LIBS)
 	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
 
-$(MAN_TARGET): cpulimit $(HELP2MAN)
+$(MAN_TARGET): $(BIN_TARGET) $(HELP2MAN)
 	$(HELP2MAN) -n $(MAN_NAME) -s $(MAN_SEC) -s $(MAN_SRC) -N ./$< > $@
 
 process_iterator.o: process_iterator.c process_iterator.h
