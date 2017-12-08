@@ -12,6 +12,9 @@ endif
 
 all::	$(TARGETS)
 
+static:
+	$(MAKE) all CFLAGS="$(CFLAGS) --static"
+
 busy:	busy.c
 	$(CC) -o busy busy.c $(SYSLIBS) $(CFLAGS)
 

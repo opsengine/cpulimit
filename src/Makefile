@@ -11,6 +11,9 @@ endif
 
 all::	$(TARGETS) $(LIBS)
 
+static:
+	$(MAKE) all CFLAGS="$(CFLAGS) --static"
+
 cpulimit:	cpulimit.c $(LIBS)
 	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
 
