@@ -73,6 +73,8 @@
 
 #define MAX_PRIORITY -10
 
+#define VERSION "0.3"
+
 /* GLOBAL VARIABLES */
 
 //the "family"
@@ -119,6 +121,7 @@ static void print_usage(FILE *stream, int exit_code) {
     fprintf(stream, "   OPTIONS\n");
     fprintf(stream, "      -l, --limit=N                percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
     fprintf(stream, "      -v, --verbose                show control statistics\n");
+    fprintf(stream, "      -V, --version                show program version number\n");
     fprintf(stream, "      -z, --lazy                   exit if there is no target process, or if it dies\n");
     fprintf(stream, "      -i, --include-children       limit also the children processes\n");
     fprintf(stream, "      -m, --minimum-limited-cpu=M  minimum percentage of cpu of target processes\n");
@@ -128,6 +131,11 @@ static void print_usage(FILE *stream, int exit_code) {
     fprintf(stream, "      -e, --exe=FILE         name of the executable program file or path name\n");
     fprintf(stream, "      COMMAND [ARGS]         run this command and limit it (implies -z)\n");
     fprintf(stream, "\nReport bugs to <marlonx80@hotmail.com>.\n");
+    exit(exit_code);
+}
+
+static void print_version(FILE *stream, int exit_code) {
+    fprintf(stream, "%s\n", VERSION);
     exit(exit_code);
 }
 
@@ -349,15 +357,16 @@ int main(int argc, char **argv) {
     const char *short_options = "+p:e:l:vzim:h";
     //An array describing valid long options
     const struct option long_options[] = {
-        { "pid",        required_argument, NULL, 'p' },
-        { "exe",        required_argument, NULL, 'e' },
-        { "limit",      required_argument, NULL, 'l' },
-        { "verbose",    no_argument,       NULL, 'v' },
-        { "lazy",       no_argument,       NULL, 'z' },
-        { "include-children", no_argument,  NULL, 'i' },
+        { "pid",        required_argument,     NULL, 'p' },
+        { "exe",        required_argument,     NULL, 'e' },
+        { "limit",      required_argument,     NULL, 'l' },
+        { "verbose",    no_argument,           NULL, 'v' },
+	{ "version",    no_argument,           NULL, 'V' },
+        { "lazy",       no_argument,           NULL, 'z' },
+        { "include-children", no_argument,     NULL, 'i' },
         { "minimum-limited-cpu", no_argument,  NULL, 'm' },
-        { "help",       no_argument,       NULL, 'h' },
-        { 0,            0,                 0,     0  }
+        { "help",       no_argument,           NULL, 'h' },
+        { 0,            0,                     0,     0  }
     };
 
     do {
@@ -378,6 +387,9 @@ int main(int argc, char **argv) {
         case 'v':
             verbose = 1;
             break;
+	case 'V':
+	    print_version(stdout, 0);
+	    break;
         case 'z':
             lazy = 1;
             break;
