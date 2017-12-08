@@ -1,5 +1,5 @@
 CC?=gcc
-CFLAGS?=-Wall -g -D_GNU_SOURCE
+CFLAGS?=-O2 -Wall -g -D_GNU_SOURCE
 TARGETS=cpulimit
 LIBS=list.o process_iterator.o process_group.o
 
