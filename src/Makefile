@@ -2,8 +2,9 @@ CC?=gcc
 CFLAGS?=-O2 -Wall -g -D_GNU_SOURCE
 TARGETS=cpulimit
 LIBS=list.o process_iterator.o process_group.o
-
 UNAME := $(shell uname)
+PREFIX?=/usr/local
+BINDIR?=$(PREFIX)/bin
 
 ifeq ($(UNAME), FreeBSD)
 LIBS+=-lkvm
@@ -13,6 +14,9 @@ all::	$(TARGETS) $(LIBS)
 
 static:
 	$(MAKE) all CFLAGS="$(CFLAGS) --static"
+
+install: $(TARGETS)
+	install $^ $(BINDIR)
 
 cpulimit:	cpulimit.c $(LIBS)
 	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)

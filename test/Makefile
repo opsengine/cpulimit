@@ -15,6 +15,8 @@ all::	$(TARGETS)
 static:
 	$(MAKE) all CFLAGS="$(CFLAGS) --static"
 
+install::
+
 busy:	busy.c
 	$(CC) -o busy busy.c $(SYSLIBS) $(CFLAGS)
 
