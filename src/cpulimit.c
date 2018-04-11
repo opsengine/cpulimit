@@ -38,7 +38,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#ifndef __sun__
 #include <sys/sysctl.h>
+#endif
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -179,9 +181,7 @@ int get_pid_max()
 	}
 	fclose(fd);
 	return atoi(buffer);
-#elif defined __FreeBSD__
-	return 99998;
-#elif defined __APPLE__
+#else
 	return 99998;
 #endif
 }
@@ -325,7 +325,11 @@ int main(int argc, char **argv) {
 	int include_children = 0;
 
 	//get program name
+#ifdef __sun__
+	char *p = strrchr(argv[0], (unsigned int)'/');
+#else
 	char *p = (char*)memrchr(argv[0], (unsigned int)'/', strlen(argv[0]));
+#endif
 	program_name = p==NULL ? argv[0] : (p+1);
 	//get current pid
 	cpulimit_pid = getpid();
