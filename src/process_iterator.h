@@ -72,7 +72,7 @@ struct process_filter {
 };
 
 struct process_iterator {
-#ifdef __linux__
+#if defined __linux__ || defined __sun__
 	DIR *dip;
 	int boot_time;
 #elif defined __FreeBSD__
