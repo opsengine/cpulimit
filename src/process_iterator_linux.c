@@ -21,9 +21,9 @@
 
 #include <sys/vfs.h>
 
-static int get_boot_time()
+static time_t get_boot_time()
 {
-	int uptime;
+	int uptime = 0;
 	FILE *fp = fopen ("/proc/uptime", "r");
 	if (fp != NULL)
 	{
@@ -103,7 +103,7 @@ static int read_process_info(pid_t pid, struct process *p)
 		return -1;
 	}
 	fclose(fd);
-	sscanf(buffer, "%s", p->command);
+	strcpy(p->command, buffer);
 	return 0;
 }
 
