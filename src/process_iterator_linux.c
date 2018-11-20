@@ -21,7 +21,7 @@
 
 #include <sys/vfs.h>
 
-static int get_boot_time()
+static time_t get_boot_time()
 {
 	int uptime = 0;
 	FILE *fp = fopen ("/proc/uptime", "r");
