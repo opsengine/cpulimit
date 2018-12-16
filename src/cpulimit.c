@@ -66,11 +66,6 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
-//control time slot in microseconds
-//each slot is splitted in a working slice and a sleeping slice
-//TODO: make it adaptive, based on the actual system load
-#define TIME_SLOT 100000
-
 #define MAX_PRIORITY -10
 
 /* GLOBAL VARIABLES */
@@ -122,6 +117,7 @@ static void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
+	fprintf(stream, "      -c, --chunk-size=N     enforce CPU limit in N microsecond chunks\n");
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
 	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
 	fprintf(stream, "      -i, --include-children limit also the children processes\n");
@@ -186,7 +182,7 @@ int get_pid_max()
 #endif
 }
 
-void limit_process(pid_t pid, double limit, int include_children)
+void limit_process(pid_t pid, double limit, int chunk_size, int include_children)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -246,14 +242,14 @@ void limit_process(pid_t pid, double limit, int include_children)
 			//it's the 1st cycle, initialize workingrate
 			pcpu = limit;
 			workingrate = limit;
-			twork.tv_nsec = TIME_SLOT * limit * 1000;
+			twork.tv_nsec = chunk_size * limit * 1000;
 		}
 		else {
 			//adjust workingrate
 			workingrate = MIN(workingrate / pcpu * limit, 1);
-			twork.tv_nsec = TIME_SLOT * 1000 * workingrate;
+			twork.tv_nsec = chunk_size * 1000 * workingrate;
 		}
-		tsleep.tv_nsec = TIME_SLOT * 1000 - twork.tv_nsec;
+		tsleep.tv_nsec = chunk_size * 1000 - twork.tv_nsec;
 
 		if (verbose) {
 			if (c%200==0)
@@ -323,6 +319,7 @@ int main(int argc, char **argv) {
 	int limit_ok = 0;
 	pid_t pid = 0;
 	int include_children = 0;
+	int chunk_size = 100000;
 
 	//get program name
 	char *p = (char*)memrchr(argv[0], (unsigned int)'/', strlen(argv[0]));
@@ -336,12 +333,13 @@ int main(int argc, char **argv) {
 	int next_option;
     int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "+p:e:l:vzih";
+	const char* short_options = "+p:e:l:c:vzih";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL, 'p' },
 		{ "exe",        required_argument, NULL, 'e' },
 		{ "limit",      required_argument, NULL, 'l' },
+		{ "chunk-size", required_argument, NULL, 'c' },
 		{ "verbose",    no_argument,       NULL, 'v' },
 		{ "lazy",       no_argument,       NULL, 'z' },
 		{ "include-children", no_argument,  NULL, 'i' },
@@ -363,6 +361,9 @@ int main(int argc, char **argv) {
 			case 'l':
 				perclimit = atoi(optarg);
 				limit_ok = 1;
+				break;
+			case 'c':
+				chunk_size = atoi(optarg);
 				break;
 			case 'v':
 				verbose = 1;
@@ -403,6 +404,12 @@ int main(int argc, char **argv) {
 	double limit = perclimit / 100.0;
 	if (limit<0 || limit >NCPU) {
 		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", NCPU);
+		print_usage(stderr, 1);
+		exit(1);
+	}
+
+	if (0 > chunk_size || chunk_size > 1000000) {
+		fprintf(stderr,"Error: chunk size must be in the range 0-1000000\n");
 		print_usage(stderr, 1);
 		exit(1);
 	}
@@ -481,7 +488,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, include_children);
+				limit_process(child, limit, chunk_size, include_children);
 				exit(0);
 			}
 		}
@@ -520,7 +527,7 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, include_children);
+			limit_process(pid, limit, chunk_size, include_children);
 		}
 		if (lazy) break;
 		sleep(2);
