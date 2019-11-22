@@ -123,7 +123,7 @@ static void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
-	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
+	fprintf(stream, "      -z, --lazy=N           timeout exit if there is no target process, or if it dies\n");
 	fprintf(stream, "      -i, --include-children limit also the children processes\n");
 	fprintf(stream, "      -h, --help             display this help and exit\n");
 	fprintf(stream, "   TARGET must be exactly one of these:\n");
@@ -336,14 +336,14 @@ int main(int argc, char **argv) {
 	int next_option;
     int option_index = 0;
 	//A string listing valid short options letters
-	const char* short_options = "+p:e:l:vzih";
+	const char* short_options = "+p:e:l:z:vih";
 	//An array describing valid long options
 	const struct option long_options[] = {
 		{ "pid",        required_argument, NULL, 'p' },
 		{ "exe",        required_argument, NULL, 'e' },
 		{ "limit",      required_argument, NULL, 'l' },
-		{ "verbose",    no_argument,       NULL, 'v' },
-		{ "lazy",       no_argument,       NULL, 'z' },
+		{ "lazy",       required_argument, NULL, 'z' },
+                { "verbose",    no_argument,       NULL, 'v' },
 		{ "include-children", no_argument,  NULL, 'i' },
 		{ "help",       no_argument,       NULL, 'h' },
 		{ 0,            0,                 0,     0  }
@@ -368,7 +368,7 @@ int main(int argc, char **argv) {
 				verbose = 1;
 				break;
 			case 'z':
-				lazy = 1;
+				lazy = atoi(optarg);
 				break;
 			case 'i':
 				include_children = 1;
@@ -522,8 +522,12 @@ int main(int argc, char **argv) {
 			//control
 			limit_process(pid, limit, include_children);
 		}
-		if (lazy) break;
-		sleep(2);
+		if (0 == lazy) 
+                    break;
+                else{
+		    sleep(1);
+                    lazy--;
+                }
 	};
 	
 	exit(0);
