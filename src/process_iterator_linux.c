@@ -99,11 +99,14 @@ static int read_process_info(pid_t pid, struct process *p)
 	sprintf(exefile,"/proc/%d/cmdline", p->pid);
 	fd = fopen(exefile, "r");
 	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
-		fclose(fd);
-		return -1;
+		fprintf(stderr, "cpulimit couldn't read arguments for process %d. "
+		                "If running cpulimit with a process name, your process might not be found.\n", p->pid);
+		p->command[0] = '\0';
 	}
+	else {
+		strcpy(p->command, buffer);
+  }
 	fclose(fd);
-	strcpy(p->command, buffer);
 	return 0;
 }
 
