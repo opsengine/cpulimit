@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,23 +19,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <sys/sysctl.h>
+#include <linux/sysctl.h>
 #include <sys/user.h>
 #include <fcntl.h>
 #include <paths.h>
 
-int init_process_iterator(struct process_iterator *it, struct process_filter *filter) {
+int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
+{
 	char errbuf[_POSIX2_LINE_MAX];
 	it->i = 0;
 	/* Open the kvm interface, get a descriptor */
-	if ((it->kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf)) == NULL) {
+	if ((it->kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf)) == NULL)
+	{
 		fprintf(stderr, "kvm_open: %s\n", errbuf);
 		return -1;
 	}
 	/* Get the list of processes. */
-	if ((it->procs = kvm_getprocs(it->kd, KERN_PROC_PROC, 0, &it->count)) == NULL) {
+	if ((it->procs = kvm_getprocs(it->kd, KERN_PROC_PROC, 0, &it->count)) == NULL)
+	{
 		kvm_close(it->kd);
-//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(it->kd));
+		//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(it->kd));
 		return -1;
 	}
 	it->filter = filter;
@@ -49,7 +52,8 @@ static int kproc2proc(kvm_t *kd, struct kinfo_proc *kproc, struct process *proc)
 	proc->cputime = kproc->ki_runtime / 1000;
 	proc->starttime = kproc->ki_start.tv_sec;
 	char **args = kvm_getargv(kd, kproc, sizeof(proc->command));
-	if (args == NULL) return -1;
+	if (args == NULL)
+		return -1;
 	memcpy(proc->command, args[0], strlen(args[0]) + 1);
 	return 0;
 }
@@ -60,14 +64,15 @@ static int get_single_process(kvm_t *kd, pid_t pid, struct process *process)
 	struct kinfo_proc *kproc = kvm_getprocs(kd, KERN_PROC_PID, pid, &count);
 	if (count == 0 || kproc == NULL)
 	{
-//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(kd));
+		//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(kd));
 		return -1;
 	}
 	kproc2proc(kd, kproc, process);
 	return 0;
 }
 
-int get_next_process(struct process_iterator *it, struct process *p) {
+int get_next_process(struct process_iterator *it, struct process *p)
+{
 	if (it->i == it->count)
 	{
 		return -1;
@@ -109,11 +114,12 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 	return -1;
 }
 
-int close_process_iterator(struct process_iterator *it) {
-	if (kvm_close(it->kd) == -1) {
+int close_process_iterator(struct process_iterator *it)
+{
+	if (kvm_close(it->kd) == -1)
+	{
 		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(it->kd));
 		return -1;
 	}
 	return 0;
 }
-

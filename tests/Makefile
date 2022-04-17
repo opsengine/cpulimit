@@ -1,23 +1,24 @@
-CC?=gcc
-CFLAGS?=-Wall -g
-TARGETS=busy process_iterator_test
-SRC=../src
-SYSLIBS?=-lpthread
-LIBS=$(SRC)/list.o $(SRC)/process_iterator.o $(SRC)/process_group.o
+CC ?= gcc
+CFLAGS ?= -Wall
+TARGETS = busy process_iterator_test
+SRC = ../src
+SYSLIBS ?= -lpthread
+LIBS := $(SRC)/list.o $(SRC)/process_iterator.o $(SRC)/process_group.o
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), FreeBSD)
-LIBS+=-lkvm
+	LDFLAGS += -lkvm
 endif
 
-all::	$(TARGETS)
+.PHONY: all clean
 
-busy:	busy.c
-	$(CC) -o busy busy.c $(SYSLIBS) $(CFLAGS)
+all: $(TARGETS)
+
+busy: busy.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(SYSLIBS)
 
 process_iterator_test: process_iterator_test.c $(LIBS)
-	$(CC) -I$(SRC) -o process_iterator_test process_iterator_test.c $(LIBS) $(SYSLIBS) $(CFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -I$(SRC) -o $@ $< $(LIBS) $(SYSLIBS)
 
 clean:
 	rm -f *~ *.o $(TARGETS)
-

@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,7 @@
 
 struct process_group
 {
-	//hashtable with all the processes (array of struct list of struct process)
+	// hashtable with all the processes (array of struct list of struct process)
 	struct list *proctable[PIDHASH_SZ];
 	struct list *proclist;
 	pid_t target_pid;

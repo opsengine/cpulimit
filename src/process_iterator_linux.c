@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,50 +21,30 @@
 
 #include <sys/vfs.h>
 
-static int get_boot_time()
-{
-	int uptime = 0;
-	FILE *fp = fopen ("/proc/uptime", "r");
-	if (fp != NULL)
-	{
-		char buf[BUFSIZ];
-		char *b = fgets(buf, BUFSIZ, fp);
-		if (b == buf)
-		{
-			char *end_ptr;
-			double upsecs = strtod(buf, &end_ptr);
-			uptime = (int)upsecs;
-		}
-		fclose (fp);
-	}
-	time_t now = time(NULL);
-	return now - uptime;
-}
-
 static int check_proc()
 {
 	struct statfs mnt;
 	if (statfs("/proc", &mnt) < 0)
 		return 0;
-	if (mnt.f_type!=0x9fa0)
+	if (mnt.f_type != 0x9fa0)
 		return 0;
 	return 1;
 }
 
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
 {
-	if (!check_proc()) {
+	if (!check_proc())
+	{
 		fprintf(stderr, "procfs is not mounted!\nAborting\n");
 		exit(-2);
 	}
-	//open a directory stream to /proc directory
+	// open a directory stream to /proc directory
 	if ((it->dip = opendir("/proc")) == NULL)
 	{
 		perror("opendir");
 		return -1;
 	}
 	it->filter = filter;
-	it->boot_time = get_boot_time();
 	return 0;
 }
 
@@ -74,37 +54,84 @@ static int read_process_info(pid_t pid, struct process *p)
 	static char statfile[32];
 	static char exefile[1024];
 	p->pid = pid;
-	//read stat file
-	sprintf(statfile, "/proc/%d/stat", p->pid);
-	FILE *fd = fopen(statfile, "r");
-	if (fd==NULL) return -1;
-	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
-		fclose(fd);
-		return -1;
-	}
-	fclose(fd);
-	char *token = strtok(buffer, " ");
-	int i;
-	for (i=0; i<3; i++) token = strtok(NULL, " ");
-	p->ppid = atoi(token);
-	for (i=0; i<10; i++)
-		token = strtok(NULL, " ");
-	p->cputime = atoi(token) * 1000 / HZ;
-	token = strtok(NULL, " ");
-	p->cputime += atoi(token) * 1000 / HZ;
-	for (i=0; i<7; i++)
-		token = strtok(NULL, " ");
-	p->starttime = atoi(token) / sysconf(_SC_CLK_TCK);
-	//read command line
-	sprintf(exefile,"/proc/%d/cmdline", p->pid);
+	FILE *fd;
+	// read command line
+	sprintf(exefile, "/proc/%d/cmdline", p->pid);
 	fd = fopen(exefile, "r");
-	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
+	if (fd == NULL)
+		goto error_out1;
+	if (fgets(buffer, sizeof(buffer), fd) == NULL)
+	{
 		fclose(fd);
-		return -1;
+		goto error_out1;
 	}
 	fclose(fd);
 	strcpy(p->command, buffer);
+
+	// read stat file
+	sprintf(statfile, "/proc/%d/stat", p->pid);
+	fd = fopen(statfile, "r");
+	if (fd == NULL)
+		goto error_out2;
+	if (fgets(buffer, sizeof(buffer), fd) == NULL)
+	{
+		fclose(fd);
+		goto error_out2;
+	}
+	fclose(fd);
+	// pid
+	char *token = strtok(buffer, " ");
+	if (token == NULL)
+		goto error_out2;
+	// comm
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		goto error_out2;
+	if (token[0] == '(')
+	{
+		while (token[strlen(token) - 1] != ')')
+		{
+			token = strtok(NULL, " ");
+			if (token == NULL)
+				goto error_out2;
+		}
+	}
+	// state
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		goto error_out2;
+	if (strcmp(token, "Z") == 0 || strcmp(token, "X") == 0)
+		goto error_out2;
+	// ppid
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		goto error_out2;
+	p->ppid = atoi(token);
+	int i;
+	for (i = 0; i < 10; i++)
+	{
+		token = strtok(NULL, " ");
+		if (token == NULL)
+			goto error_out2;
+	}
+	p->cputime = atoi(token) * 1000 / HZ;
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		goto error_out2;
+	p->cputime += atoi(token) * 1000 / HZ;
+	for (i = 0; i < 7; i++)
+	{
+		token = strtok(NULL, " ");
+		if (token == NULL)
+			goto error_out2;
+	}
+	p->starttime = atoi(token) / sysconf(_SC_CLK_TCK);
 	return 0;
+
+error_out1:
+	p->command[0] = '\0';
+error_out2:
+	return -1;
 }
 
 static pid_t getppid_of(pid_t pid)
@@ -113,22 +140,47 @@ static pid_t getppid_of(pid_t pid)
 	char buffer[1024];
 	sprintf(statfile, "/proc/%d/stat", pid);
 	FILE *fd = fopen(statfile, "r");
-	if (fd==NULL) return -1;
-	if (fgets(buffer, sizeof(buffer), fd)==NULL) {
+	if (fd == NULL)
+		return -1;
+	if (fgets(buffer, sizeof(buffer), fd) == NULL)
+	{
 		fclose(fd);
 		return -1;
 	}
 	fclose(fd);
+	// pid
 	char *token = strtok(buffer, " ");
-	int i;
-	for (i=0; i<3; i++) token = strtok(NULL, " ");
+	if (token == NULL)
+		return -1;
+	// comm
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		return -1;
+	if (token[0] == '(')
+	{
+		while (token[strlen(token) - 1] != ')')
+		{
+			token = strtok(NULL, " ");
+			if (token == NULL)
+				return -1;
+		}
+	}
+	// state
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		return -1;
+	// ppid
+	token = strtok(NULL, " ");
+	if (token == NULL)
+		return -1;
 	return atoi(token);
 }
 
 static int is_child_of(pid_t child_pid, pid_t parent_pid)
 {
 	int ppid = child_pid;
-	while(ppid > 1 && ppid != parent_pid) {
+	while (ppid > 1 && ppid != parent_pid)
+	{
 		ppid = getppid_of(ppid);
 	}
 	return ppid == parent_pid;
@@ -138,32 +190,33 @@ int get_next_process(struct process_iterator *it, struct process *p)
 {
 	if (it->dip == NULL)
 	{
-		//end of processes
+		// end of processes
 		return -1;
 	}
 	if (it->filter->pid != 0 && !it->filter->include_children)
 	{
 		int ret = read_process_info(it->filter->pid, p);
-		//p->starttime += it->boot_time;
 		closedir(it->dip);
 		it->dip = NULL;
-		if (ret != 0) return -1;
+		if (ret != 0)
+			return -1;
 		return 0;
 	}
 	struct dirent *dit = NULL;
-	//read in from /proc and seek for process dirs
-	while ((dit = readdir(it->dip)) != NULL) {
-		if(strtok(dit->d_name, "0123456789") != NULL)
+	// read in from /proc and seek for process dirs
+	while ((dit = readdir(it->dip)) != NULL)
+	{
+		if (strtok(dit->d_name, "0123456789") != NULL)
 			continue;
 		p->pid = atoi(dit->d_name);
-		if (it->filter->pid != 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid)) continue;
+		if (it->filter->pid != 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid))
+			continue;
 		read_process_info(p->pid, p);
-		//p->starttime += it->boot_time;
 		break;
 	}
 	if (dit == NULL)
 	{
-		//end of processes
+		// end of processes
 		closedir(it->dip);
 		it->dip = NULL;
 		return -1;
@@ -171,8 +224,10 @@ int get_next_process(struct process_iterator *it, struct process *p)
 	return 0;
 }
 
-int close_process_iterator(struct process_iterator *it) {
-	if (it->dip != NULL && closedir(it->dip) == -1) {
+int close_process_iterator(struct process_iterator *it)
+{
+	if (it->dip != NULL && closedir(it->dip) == -1)
+	{
 		perror("closedir");
 		return 1;
 	}

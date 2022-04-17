@@ -1,28 +1,32 @@
-CC?=gcc
-CFLAGS?=-Wall -g -D_GNU_SOURCE
-TARGETS=cpulimit
-LIBS=list.o process_iterator.o process_group.o
+CC ?= gcc
+CFLAGS ?= -Wall
+TARGET := cpulimit
+OBJS := cpulimit.o list.o process_iterator.o process_group.o
 
-UNAME := $(shell uname)
+UNAME ?= $(shell uname)
 
 ifeq ($(UNAME), FreeBSD)
-LIBS+=-lkvm
+	LDFLAGS += -lkvm
 endif
 
-all::	$(TARGETS) $(LIBS)
+.PHONY: all clean
 
-cpulimit:	cpulimit.c $(LIBS)
-	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
+all: $(TARGET)
 
-process_iterator.o: process_iterator.c process_iterator.h
-	$(CC) -c process_iterator.c $(CFLAGS)
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) $^ -o $@
+
+cpulimit.o: cpulimit.c process_group.h list.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+process_iterator.o: process_iterator.c process_iterator.h process_iterator_linux.c process_iterator_freebsd.c process_iterator_apple.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 list.o: list.c list.h
-	$(CC) -c list.c $(CFLAGS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-process_group.o: process_group.c process_group.h process_iterator.o list.o
-	$(CC) -c process_group.c $(CFLAGS)
+process_group.o: process_group.c process_group.h process_iterator.h list.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *~ *.o $(TARGETS)
-
+	rm -f *~ $(OBJS) $(TARGET)

@@ -27,10 +27,7 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
-
-#ifdef __APPLE__ || __FREEBSD__
 #include <libgen.h>
-#endif
 
 #include <process_iterator.h>
 #include <process_group.h>
