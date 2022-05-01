@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <libgen.h>
 
 #include <assert.h>
 
