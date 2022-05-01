@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <libgen.h>
 
 #if defined(__APPLE__) || defined(__FREEBSD__)
 #include <libgen.h>
