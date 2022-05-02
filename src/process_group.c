@@ -132,9 +132,15 @@ void remove_terminated_processes(struct process_group *pgroup)
 }
 
 // return t1-t2 in microseconds (no overflow checks, so better watch out!)
-static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
+// static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
+// {
+// 	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
+// }
+
+// returns t1-t2 in millisecond
+static inline double timediff_in_ms(const struct timeval *t1, const struct timeval *t2)
 {
-	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
+	return (t1->tv_sec - t2->tv_sec) * 1e3 + (t1->tv_usec - t2->tv_usec) / 1e3;
 }
 
 // parameter in range 0-1
@@ -149,7 +155,8 @@ void update_process_group(struct process_group *pgroup)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	// time elapsed from previous sample (in ms)
-	long dt = timediff(&now, &pgroup->last_update) / 1000;
+	// long dt = timediff(&now, &pgroup->last_update) / 1000;
+	double dt = timediff_in_ms(&now, &pgroup->last_update);
 	filter.pid = pgroup->target_pid;
 	filter.include_children = pgroup->include_children;
 	init_process_iterator(&it, &filter);

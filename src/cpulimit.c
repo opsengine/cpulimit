@@ -58,6 +58,10 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef EPSILON
+#define EPSILON 1e-12
+#endif
+
 // control time slot in microseconds
 // each slot is splitted in a working slice and a sleeping slice
 // TODO: make it adaptive, based on the actual system load
@@ -105,10 +109,10 @@ static void quit(int sig)
 }
 
 // return t1-t2 in microseconds (no overflow checks, so better watch out!)
-static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
-{
-	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
-}
+// static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
+// {
+// 	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
+// }
 
 static void print_usage(FILE *stream, int exit_code)
 {
@@ -204,7 +208,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 	memset(&startwork, 0, sizeof(struct timeval));
 	memset(&endwork, 0, sizeof(struct timeval));
 	// last working time in microseconds
-	unsigned long workingtime = 0;
+	// unsigned long workingtime = 0;
 	// generic list item
 	struct list_node *node;
 	// counter
@@ -256,22 +260,30 @@ void limit_process(pid_t pid, double limit, int include_children)
 			// it's the 1st cycle, initialize workingrate
 			pcpu = limit;
 			workingrate = limit;
-			twork.tv_nsec = TIME_SLOT * limit * 1000;
 		}
 		else
 		{
 			// adjust workingrate
-			workingrate = MIN(workingrate / pcpu * limit, 1);
-			twork.tv_nsec = TIME_SLOT * 1000 * workingrate;
+			workingrate = (workingrate + EPSILON) /
+						  (pcpu + EPSILON) *
+						  (limit + EPSILON);
 		}
-		tsleep.tv_nsec = TIME_SLOT * 1000 - twork.tv_nsec;
+		workingrate = MAX(MIN(workingrate, 1 - EPSILON), EPSILON);
+
+		double twork_total_nsec = (double)TIME_SLOT * 1000 * workingrate;
+		twork.tv_sec = (time_t)(twork_total_nsec / 1e9);
+		twork.tv_nsec = (long)(twork_total_nsec - twork.tv_sec * 1e9);
+
+		double tsleep_total_nsec = (double)TIME_SLOT * 1000 - twork_total_nsec;
+		tsleep.tv_sec = (time_t)(tsleep_total_nsec / 1e9);
+		tsleep.tv_nsec = (long)(tsleep_total_nsec - tsleep.tv_sec * 1e9);
 
 		if (verbose)
 		{
 			if (c % 200 == 0)
-				printf("\n%%CPU\twork quantum\tsleep quantum\tactive rate\n");
+				printf("\n    %%CPU    work quantum    sleep quantum    active rate\n");
 			if (c % 10 == 0 && c > 0)
-				printf("%0.2lf%%\t%6ld us\t%6ld us\t%0.2lf%%\n", pcpu * 100, twork.tv_nsec / 1000, tsleep.tv_nsec / 1000, workingrate * 100);
+				printf("%7.2lf%%    %9.0lf us    %10.0lf us    %10.2lf%%\n", pcpu * 100, twork_total_nsec / 1000, tsleep_total_nsec / 1000, workingrate * 100);
 		}
 
 		// resume processes
@@ -296,16 +308,16 @@ void limit_process(pid_t pid, double limit, int include_children)
 		gettimeofday(&startwork, NULL);
 		nanosleep(&twork, NULL);
 		gettimeofday(&endwork, NULL);
-		workingtime = timediff(&endwork, &startwork);
+		// workingtime = timediff(&endwork, &startwork);
 
-		long delay = workingtime - twork.tv_nsec / 1000;
-		if (c > 0 && delay > 10000)
-		{
-			// delay is too much! signal to user?
-			// fprintf(stderr, "%d %ld us\n", c, delay);
-		}
+		// long delay = workingtime - twork.tv_nsec / 1000;
+		// if (c > 0 && delay > 10000)
+		// {
+		// 	// delay is too much! signal to user?
+		// 	// fprintf(stderr, "%d %ld us\n", c, delay);
+		// }
 
-		if (tsleep.tv_nsec > 0)
+		if (tsleep.tv_nsec > 0 || tsleep.tv_sec > 0)
 		{
 			// stop processes only if tsleep>0
 			node = pgroup.proclist->first;
