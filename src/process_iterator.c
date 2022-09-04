@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #ifndef __APPLE__
+#include <unistd.h>
 #include <sys/procfs.h>
 #endif
 #include <time.h>

@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <libgen.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -38,12 +39,6 @@
 int find_process_by_pid(pid_t pid)
 {
 	return (kill(pid, 0) == 0) ? pid : -pid;
-}
-
-static inline char *basename(const char *filename)
-{
-	char *p = strrchr(filename, '/');
-	return p ? p + 1 : (char *)filename;
 }
 
 // look for a process with a given name
