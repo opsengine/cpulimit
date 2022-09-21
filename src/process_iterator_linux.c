@@ -51,8 +51,8 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 static int read_process_info(pid_t pid, struct process *p)
 {
 	static char buffer[PATH_MAX + 1];
-	static char statfile[64];
-	static char exefile[64];
+	char statfile[32];
+	char exefile[32];
 	p->pid = pid;
 	FILE *fd;
 	// read command line
@@ -136,8 +136,8 @@ error_out2:
 
 static pid_t getppid_of(pid_t pid)
 {
-	static char statfile[64];
-	static char buffer[2048];
+	char statfile[32];
+	static char buffer[1024];
 	sprintf(statfile, "/proc/%d/stat", pid);
 	FILE *fd = fopen(statfile, "r");
 	if (fd == NULL)

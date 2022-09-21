@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 {
 	// argument variables
 	const char *exe = NULL;
-	char exe_name[PATH_MAX + 1];
+	static char exe_name[PATH_MAX + 1];
 	int perclimit = 0;
 	int exe_ok = 0;
 	int pid_ok = 0;

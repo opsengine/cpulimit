@@ -26,7 +26,7 @@
 
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
 {
-	char errbuf[_POSIX2_LINE_MAX];
+	static char errbuf[_POSIX2_LINE_MAX];
 	it->i = 0;
 	/* Open the kvm interface, get a descriptor */
 	if ((it->kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf)) == NULL)
