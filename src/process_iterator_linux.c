@@ -137,43 +137,15 @@ error_out2:
 static pid_t getppid_of(pid_t pid)
 {
 	char statfile[32];
-	static char buffer[1024];
+	FILE *fd;
+	pid_t parent_pid = -1;
 	sprintf(statfile, "/proc/%d/stat", pid);
-	FILE *fd = fopen(statfile, "r");
-	if (fd == NULL)
-		return -1;
-	if (fgets(buffer, sizeof(buffer), fd) == NULL)
+	if ((fd = fopen(statfile, "r")) != NULL)
 	{
+		fscanf(fd, "%*d (%*[^)]) %*c %d", &parent_pid);
 		fclose(fd);
-		return -1;
 	}
-	fclose(fd);
-	// pid
-	char *token = strtok(buffer, " ");
-	if (token == NULL)
-		return -1;
-	// comm
-	token = strtok(NULL, " ");
-	if (token == NULL)
-		return -1;
-	if (token[0] == '(')
-	{
-		while (token[strlen(token) - 1] != ')')
-		{
-			token = strtok(NULL, " ");
-			if (token == NULL)
-				return -1;
-		}
-	}
-	// state
-	token = strtok(NULL, " ");
-	if (token == NULL)
-		return -1;
-	// ppid
-	token = strtok(NULL, " ");
-	if (token == NULL)
-		return -1;
-	return atoi(token);
+	return parent_pid;
 }
 
 static int is_child_of(pid_t child_pid, pid_t parent_pid)
