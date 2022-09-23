@@ -25,9 +25,12 @@
 
 #include <unistd.h>
 #include <limits.h>
+#if defined(__linux__)
+#include <linux/limits.h>
+#endif
 #include <dirent.h>
 
-// USER_HZ detection, from openssl code
+/* USER_HZ detection, from openssl code */
 #ifndef HZ
 #if defined(_SC_CLK_TCK) && (!defined(OPENSSL_SYS_VMS) || __CTRL_VER >= 70000000)
 #define HZ ((double)sysconf(_SC_CLK_TCK))
@@ -48,20 +51,20 @@
 #include <kvm.h>
 #endif
 
-// process descriptor
+/* process descriptor */
 struct process
 {
-	// pid of the process
+	/* pid of the process */
 	pid_t pid;
-	// ppid of the process
+	/* ppid of the process */
 	pid_t ppid;
-	// start time (unix timestamp)
+	/* start time (unix timestamp) */
 	time_t starttime;
-	// cputime used by the process (in milliseconds)
+	/* cputime used by the process (in milliseconds) */
 	int cputime;
-	// actual cpu usage estimation (value in range 0-1)
+	/* actual cpu usage estimation (value in range 0-1) */
 	double cpu_usage;
-	// absolute path of the executable file
+	/* absolute path of the executable file */
 	char command[PATH_MAX + 1];
 };
 

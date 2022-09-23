@@ -30,23 +30,23 @@
 
 struct list_node
 {
-    // pointer to the content of the node
+    /* pointer to the content of the node */
     void *data;
-    // pointer to previous node
+    /* pointer to previous node */
     struct list_node *previous;
-    // pointer to next node
+    /* pointer to next node */
     struct list_node *next;
 };
 
 struct list
 {
-    // first node
+    /* first node */
     struct list_node *first;
-    // last node
+    /* last node */
     struct list_node *last;
-    // size of the search key in bytes
+    /* size of the search key in bytes */
     int keysize;
-    // element count
+    /* element count */
     int count;
 };
 

@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <linux/sysctl.h>
+#include <sys/sysctl.h>
 #include <sys/user.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -38,7 +38,6 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 	if ((it->procs = kvm_getprocs(it->kd, KERN_PROC_PROC, 0, &it->count)) == NULL)
 	{
 		kvm_close(it->kd);
-		//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(it->kd));
 		return -1;
 	}
 	it->filter = filter;
@@ -47,12 +46,12 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 
 static int kproc2proc(kvm_t *kd, struct kinfo_proc *kproc, struct process *proc)
 {
+	char **args;
 	proc->pid = kproc->ki_pid;
 	proc->ppid = kproc->ki_ppid;
 	proc->cputime = kproc->ki_runtime / 1000;
 	proc->starttime = kproc->ki_start.tv_sec;
-	char **args = kvm_getargv(kd, kproc, sizeof(proc->command));
-	if (args == NULL)
+	if ((args = kvm_getargv(kd, kproc, sizeof(proc->command))) == NULL)
 		return -1;
 	memcpy(proc->command, args[0], strlen(args[0]) + 1);
 	return 0;
@@ -64,7 +63,6 @@ static int get_single_process(kvm_t *kd, pid_t pid, struct process *process)
 	struct kinfo_proc *kproc = kvm_getprocs(kd, KERN_PROC_PID, pid, &count);
 	if (count == 0 || kproc == NULL)
 	{
-		//		fprintf(stderr, "kvm_getprocs: %s\n", kvm_geterr(kd));
 		return -1;
 	}
 	kproc2proc(kd, kproc, process);
@@ -92,7 +90,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		struct kinfo_proc *kproc = &(it->procs[it->i]);
 		if (kproc->ki_flag & P_SYSTEM)
 		{
-			// skip system processes
+			/* skip system processes */
 			it->i++;
 			continue;
 		}

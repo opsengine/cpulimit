@@ -29,6 +29,8 @@
 int unique_nonzero_ints(int *arr_in, int len_in, int *arr_out)
 {
 	int *source = arr_in;
+	int len_out = 0;
+	int i, j;
 	if (arr_out == NULL)
 		return -1;
 	if (arr_in == arr_out)
@@ -37,8 +39,6 @@ int unique_nonzero_ints(int *arr_in, int len_in, int *arr_out)
 		memcpy(source, arr_in, sizeof(int) * len_in);
 		memset(arr_out, -1, sizeof(int) * len_in);
 	}
-	int len_out = 0;
-	int i, j;
 	for (i = 0; i < len_in; i++)
 	{
 		int found = 0;
@@ -108,7 +108,7 @@ static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti)
 		}
 		return -1;
 	}
-	else if (bytes < sizeof(ti))
+	else if (bytes < (int)sizeof(ti))
 	{
 		fprintf(stderr, "proc_pidinfo: too few bytes; expected %ld, got %d\n", sizeof(ti), bytes);
 		return -1;
@@ -148,7 +148,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		{
 			pti2proc(&ti, p);
 			it->i++;
-			if (p->pid != it->pidlist[it->i - 1]) // I don't know why this can happen
+			if (p->pid != it->pidlist[it->i - 1]) /* I don't know why this can happen */
 				continue;
 			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
 				continue;

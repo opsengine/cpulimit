@@ -38,7 +38,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		fprintf(stderr, "procfs is not mounted!\nAborting\n");
 		exit(-2);
 	}
-	// open a directory stream to /proc directory
+	/* open a directory stream to /proc directory */
 	if ((it->dip = opendir("/proc")) == NULL)
 	{
 		perror("opendir");
@@ -51,12 +51,12 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 static int read_process_info(pid_t pid, struct process *p)
 {
 	char statfile[32], exefile[32], state;
-	unsigned long long utime, stime, start_time;
+	long utime, stime, start_time;
 	FILE *fd;
 
 	p->pid = pid;
 
-	// read command line
+	/* read command line */
 	sprintf(exefile, "/proc/%d/cmdline", p->pid);
 	fd = fopen(exefile, "r");
 	if (fd == NULL)
@@ -68,13 +68,13 @@ static int read_process_info(pid_t pid, struct process *p)
 	}
 	fclose(fd);
 
-	// read stat file
+	/* read stat file */
 	sprintf(statfile, "/proc/%d/stat", p->pid);
 	fd = fopen(statfile, "r");
 	if (fd == NULL)
 		goto error_out2;
 
-	if (fscanf(fd, "%*d (%*[^)]) %c %d %*d %*d %*d %*d %*d %*d %*d %*d %*d %llu %llu %*d %*d %*d %*d %*d %*d %llu",
+	if (fscanf(fd, "%*d (%*[^)]) %c %d %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld %*d %*d %*d %*d %*d %*d %ld",
 			   &state, &p->ppid, &utime, &stime, &start_time) != 5 ||
 		state == 'Z' || state == 'X')
 	{
@@ -118,9 +118,11 @@ static int is_child_of(pid_t child_pid, pid_t parent_pid)
 
 int get_next_process(struct process_iterator *it, struct process *p)
 {
+	struct dirent *dit = NULL;
+
 	if (it->dip == NULL)
 	{
-		// end of processes
+		/* end of processes */
 		return -1;
 	}
 	if (it->filter->pid != 0 && !it->filter->include_children)
@@ -132,8 +134,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			return -1;
 		return 0;
 	}
-	struct dirent *dit = NULL;
-	// read in from /proc and seek for process dirs
+
+	/* read in from /proc and seek for process dirs */
 	while ((dit = readdir(it->dip)) != NULL)
 	{
 		if (strtok(dit->d_name, "0123456789") != NULL)
@@ -146,7 +148,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 	}
 	if (dit == NULL)
 	{
-		// end of processes
+		/* end of processes */
 		closedir(it->dip);
 		it->dip = NULL;
 		return -1;

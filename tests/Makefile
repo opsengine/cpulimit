@@ -1,9 +1,9 @@
 CC ?= gcc
-CFLAGS ?= -Wall
+CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) -Wall -std=gnu89
 TARGETS = busy process_iterator_test
 SRC = ../src
 SYSLIBS ?= -lpthread
-LIBS := $(SRC)/list.o $(SRC)/process_iterator.o $(SRC)/process_group.o
+LIBS := $(SRC)/list.c $(SRC)/process_iterator.c $(SRC)/process_group.c
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), FreeBSD)
@@ -15,10 +15,10 @@ endif
 all: $(TARGETS)
 
 busy: busy.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(SYSLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(SYSLIBS) -o $@
 
 process_iterator_test: process_iterator_test.c $(LIBS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -I$(SRC) -o $@ $< $(LIBS) $(SYSLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -I$(SRC) $^ $(SYSLIBS) -o $@
 
 clean:
-	rm -f *~ *.o $(TARGETS)
+	rm -f *~ $(TARGETS)

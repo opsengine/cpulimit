@@ -5,15 +5,18 @@
 
 void *loop()
 {
-	while(1);
+	while (1)
+		;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
 	int i = 0;
 	int num_threads = 1;
-	if (argc == 2) num_threads = atoi(argv[1]);
-	for (i=0; i<num_threads-1; i++)
+	if (argc == 2)
+		num_threads = atoi(argv[1]);
+	for (i = 0; i < num_threads - 1; i++)
 	{
 		pthread_t thread;
 		int ret;
@@ -26,4 +29,3 @@ int main(int argc, char **argv) {
 	loop();
 	return 0;
 }
-

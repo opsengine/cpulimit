@@ -29,29 +29,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <getopt.h>
 #include <time.h>
+#include <string.h>
 #include <signal.h>
-#include <string.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <sys/time.h>
-#include <linux/sysctl.h>
 #include <sys/resource.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <libgen.h>
 
 #include "process_group.h"
 #include "list.h"
 
-#ifdef HAVE_SYS_SYSINFO_H
-#include <sys/sysinfo.h>
-#endif
-
-// some useful macro
+/* some useful macro */
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
@@ -63,36 +53,36 @@
 #define EPSILON 1e-12
 #endif
 
-// control time slot in microseconds
-// each slot is splitted in a working slice and a sleeping slice
-// TODO: make it adaptive, based on the actual system load
+/* control time slot in microseconds */
+/* each slot is splitted in a working slice and a sleeping slice */
+/* TODO: make it adaptive, based on the actual system load */
 #define TIME_SLOT 100000
 
 #define MAX_PRIORITY -20
 
 /* GLOBAL VARIABLES */
 
-// the "family"
+/* the "family" */
 struct process_group pgroup;
-// pid of cpulimit
+/* pid of cpulimit */
 pid_t cpulimit_pid;
-// name of this program (maybe cpulimit...)
+/* name of this program (maybe cpulimit...) */
 char *program_name;
 
-// number of cpu
+/* number of cpu */
 int NCPU;
 
 /* CONFIGURATION VARIABLES */
 
-// verbose mode
+/* verbose mode */
 int verbose = 0;
-// lazy mode (exits if there is no process)
+/* lazy mode (exits if there is no process) */
 int lazy = 0;
 
-// SIGINT and SIGTERM signal handler
+/* SIGINT and SIGTERM signal handler */
 static void quit(int sig)
 {
-	// let all the processes continue if stopped
+	/* let all the processes continue if stopped */
 	struct list_node *node = NULL;
 	if (pgroup.proclist != NULL)
 	{
@@ -103,17 +93,11 @@ static void quit(int sig)
 		}
 		close_process_group(&pgroup);
 	}
-	// fix ^C little problem
+	/* fix ^C little problem */
 	printf("\r");
 	fflush(stdout);
 	exit(0);
 }
-
-// return t1-t2 in microseconds (no overflow checks, so better watch out!)
-// static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
-// {
-// 	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
-// }
 
 static void print_usage(FILE *stream, int exit_code)
 {
@@ -134,7 +118,7 @@ static void print_usage(FILE *stream, int exit_code)
 
 static void increase_priority()
 {
-	// find the best available nice value
+	/* find the best available nice value */
 	int old_priority = getpriority(PRIO_PROCESS, 0);
 	int priority = old_priority;
 	while (setpriority(PRIO_PROCESS, 0, priority - 1) == 0 && priority > MAX_PRIORITY)
@@ -174,7 +158,7 @@ static int get_ncpu()
 int get_pid_max()
 {
 #if defined(__linux__)
-	// read /proc/sys/kernel/pid_max
+	/* read /proc/sys/kernel/pid_max */
 	int pid_max = -1;
 	FILE *fd;
 	if ((fd = fopen("/proc/sys/kernel/pid_max", "r")) != NULL)
@@ -192,40 +176,46 @@ int get_pid_max()
 
 void limit_process(pid_t pid, double limit, int include_children)
 {
-	// slice of the slot in which the process is allowed to run
+	/* slice of the slot in which the process is allowed to run */
 	struct timespec twork;
-	// slice of the slot in which the process is stopped
+	/* slice of the slot in which the process is stopped */
 	struct timespec tsleep;
-	// when the last twork has started
+	/* when the last twork has started */
 	struct timeval startwork;
-	// when the last twork has finished
+	/* when the last twork has finished */
 	struct timeval endwork;
-	// initialization
+	/* generic list item */
+	struct list_node *node;
+	/* counter */
+	int c = 0;
+
+	/* rate at which we are keeping active the processes (range 0-1) */
+	/* 1 means that the process are using all the twork slice */
+	double workingrate = -1;
+
+	/* initialization */
 	memset(&twork, 0, sizeof(struct timespec));
 	memset(&tsleep, 0, sizeof(struct timespec));
 	memset(&startwork, 0, sizeof(struct timeval));
 	memset(&endwork, 0, sizeof(struct timeval));
-	// last working time in microseconds
-	// unsigned long workingtime = 0;
-	// generic list item
-	struct list_node *node;
-	// counter
-	int c = 0;
 
-	// get a better priority
+	/* get a better priority */
 	increase_priority();
 
-	// build the family
+	/* build the family */
 	init_process_group(&pgroup, pid, include_children);
 
 	if (verbose)
 		printf("Members in the process group owned by %d: %d\n", pgroup.target_pid, pgroup.proclist->count);
 
-	// rate at which we are keeping active the processes (range 0-1)
-	// 1 means that the process are using all the twork slice
-	double workingrate = -1;
 	while (1)
 	{
+		/* total cpu actual usage (range 0-1) */
+		/* 1 means that the processes are using 100% cpu */
+		double pcpu = -1;
+
+		double twork_total_nsec, tsleep_total_nsec;
+
 		update_process_group(&pgroup);
 
 		if (pgroup.proclist->count == 0)
@@ -235,11 +225,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			break;
 		}
 
-		// total cpu actual usage (range 0-1)
-		// 1 means that the processes are using 100% cpu
-		double pcpu = -1;
-
-		// estimate how much the controlled processes are using the cpu in the working interval
+		/* estimate how much the controlled processes are using the cpu in the working interval */
 		for (node = pgroup.proclist->first; node != NULL; node = node->next)
 		{
 			struct process *proc = (struct process *)(node->data);
@@ -252,27 +238,27 @@ void limit_process(pid_t pid, double limit, int include_children)
 			pcpu += proc->cpu_usage;
 		}
 
-		// adjust work and sleep time slices
+		/* adjust work and sleep time slices */
 		if (pcpu < 0)
 		{
-			// it's the 1st cycle, initialize workingrate
+			/* it's the 1st cycle, initialize workingrate */
 			pcpu = limit;
 			workingrate = limit;
 		}
 		else
 		{
-			// adjust workingrate
+			/* adjust workingrate */
 			workingrate = (workingrate + EPSILON) /
 						  (pcpu + EPSILON) *
 						  (limit + EPSILON);
 		}
 		workingrate = MAX(MIN(workingrate, 1 - EPSILON), EPSILON);
 
-		double twork_total_nsec = (double)TIME_SLOT * 1000 * workingrate;
+		twork_total_nsec = (double)TIME_SLOT * 1000 * workingrate;
 		twork.tv_sec = (time_t)(twork_total_nsec / 1e9);
 		twork.tv_nsec = (long)(twork_total_nsec - twork.tv_sec * 1e9);
 
-		double tsleep_total_nsec = (double)TIME_SLOT * 1000 - twork_total_nsec;
+		tsleep_total_nsec = (double)TIME_SLOT * 1000 - twork_total_nsec;
 		tsleep.tv_sec = (time_t)(tsleep_total_nsec / 1e9);
 		tsleep.tv_nsec = (long)(tsleep_total_nsec - tsleep.tv_sec * 1e9);
 
@@ -281,10 +267,10 @@ void limit_process(pid_t pid, double limit, int include_children)
 			if (c % 200 == 0)
 				printf("\n    %%CPU    work quantum    sleep quantum    active rate\n");
 			if (c % 10 == 0 && c > 0)
-				printf("%7.2lf%%    %9.0lf us    %10.0lf us    %10.2lf%%\n", pcpu * 100, twork_total_nsec / 1000, tsleep_total_nsec / 1000, workingrate * 100);
+				printf("%7.2f%%    %9.0f us    %10.0f us    %10.2f%%\n", pcpu * 100, twork_total_nsec / 1000, tsleep_total_nsec / 1000, workingrate * 100);
 		}
 
-		// resume processes
+		/* resume processes */
 		node = pgroup.proclist->first;
 		while (node != NULL)
 		{
@@ -292,32 +278,24 @@ void limit_process(pid_t pid, double limit, int include_children)
 			struct process *proc = (struct process *)(node->data);
 			if (kill(proc->pid, SIGCONT) != 0)
 			{
-				// process is dead, remove it from family
+				/* process is dead, remove it from family */
 				if (verbose)
 					fprintf(stderr, "SIGCONT failed. Process %d dead!\n", proc->pid);
-				// remove process from group
+				/* remove process from group */
 				delete_node(pgroup.proclist, node);
 				remove_process(&pgroup, proc->pid);
 			}
 			node = next_node;
 		}
 
-		// now processes are free to run (same working slice for all)
+		/* now processes are free to run (same working slice for all) */
 		gettimeofday(&startwork, NULL);
 		nanosleep(&twork, NULL);
 		gettimeofday(&endwork, NULL);
-		// workingtime = timediff(&endwork, &startwork);
-
-		// long delay = workingtime - twork.tv_nsec / 1000;
-		// if (c > 0 && delay > 10000)
-		// {
-		// 	// delay is too much! signal to user?
-		// 	// fprintf(stderr, "%d %ld us\n", c, delay);
-		// }
 
 		if (tsleep.tv_nsec > 0 || tsleep.tv_sec > 0)
 		{
-			// stop processes only if tsleep>0
+			/* stop processes only if tsleep>0 */
 			node = pgroup.proclist->first;
 			while (node != NULL)
 			{
@@ -325,16 +303,16 @@ void limit_process(pid_t pid, double limit, int include_children)
 				struct process *proc = (struct process *)(node->data);
 				if (kill(proc->pid, SIGSTOP) != 0)
 				{
-					// process is dead, remove it from family
+					/* process is dead, remove it from family */
 					if (verbose)
 						fprintf(stderr, "SIGSTOP failed. Process %d dead!\n", proc->pid);
-					// remove process from group
+					/* remove process from group */
 					delete_node(pgroup.proclist, node);
 					remove_process(&pgroup, proc->pid);
 				}
 				node = next_node;
 			}
-			// now the processes are sleeping
+			/* now the processes are sleeping */
 			nanosleep(&tsleep, NULL);
 		}
 		c++;
@@ -344,7 +322,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 
 int main(int argc, char **argv)
 {
-	// argument variables
+	/* argument variables */
 	const char *exe = NULL;
 	static char exe_name[PATH_MAX + 1];
 	int perclimit = 0;
@@ -353,21 +331,14 @@ int main(int argc, char **argv)
 	int limit_ok = 0;
 	pid_t pid = 0;
 	int include_children = 0;
+	int command_mode;
 
-	// get program name
-	char *p = strrchr(argv[0], '/');
-	program_name = p == NULL ? argv[0] : (p + 1);
-	// get current pid
-	cpulimit_pid = getpid();
-	// get cpu count
-	NCPU = get_ncpu();
-
-	// parse arguments
+	/* parse arguments */
 	int next_option;
 	int option_index = 0;
-	// A string listing valid short options letters
+	/* A string listing valid short options letters */
 	const char *short_options = "+p:e:l:vzih";
-	// An array describing valid long options
+	/* An array describing valid long options */
 	const struct option long_options[] = {
 		{"pid", required_argument, NULL, 'p'},
 		{"exe", required_argument, NULL, 'e'},
@@ -377,6 +348,16 @@ int main(int argc, char **argv)
 		{"include-children", no_argument, NULL, 'i'},
 		{"help", no_argument, NULL, 'h'},
 		{0, 0, 0, 0}};
+
+	double limit;
+
+	/* get program name */
+	char *p = strrchr(argv[0], '/');
+	program_name = p == NULL ? argv[0] : (p + 1);
+	/* get current pid */
+	cpulimit_pid = getpid();
+	/* get cpu count */
+	NCPU = get_ncpu();
 
 	do
 	{
@@ -388,7 +369,7 @@ int main(int argc, char **argv)
 			pid_ok = 1;
 			break;
 		case 'e':
-			// exe = optarg;
+			/* exe = optarg; */
 			*exe_name = '\0';
 			strncat(exe_name, optarg, PATH_MAX);
 			exe = basename(exe_name);
@@ -437,7 +418,7 @@ int main(int argc, char **argv)
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	double limit = perclimit / 100.0;
+	limit = perclimit / 100.0;
 	if (limit < 0 || limit > NCPU)
 	{
 		fprintf(stderr, "Error: limit must be in the range 0-%d00\n", NCPU);
@@ -445,7 +426,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	int command_mode = optind < argc;
+	command_mode = optind < argc;
 	if (exe_ok + pid_ok + command_mode == 0)
 	{
 		fprintf(stderr, "Error: You must specify one target process, either by name, pid, or command line\n");
@@ -460,20 +441,21 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	// all arguments are ok!
+	/* all arguments are ok! */
 	signal(SIGINT, quit);
 	signal(SIGTERM, quit);
 
-	// print the number of available cpu
+	/* print the number of available cpu */
 	if (verbose)
 		printf("%d cpu detected\n", NCPU);
 
 	if (command_mode)
 	{
 		int i;
-		// executable file
+		pid_t child;
+		/* executable file */
 		const char *cmd = argv[optind];
-		// command line arguments
+		/* command line arguments */
 		char **cmd_args = (char **)malloc((argc - optind + 1) * sizeof(char *));
 		if (cmd_args == NULL)
 			exit(2);
@@ -493,31 +475,32 @@ int main(int argc, char **argv)
 			printf("'\n");
 		}
 
-		int child = fork();
+		child = fork();
 		if (child < 0)
 		{
 			exit(EXIT_FAILURE);
 		}
 		else if (child == 0)
 		{
-			// target process code
+			/* target process code */
 			int ret = execvp(cmd, cmd_args);
-			// if we are here there was an error, show it
+			/* if we are here there was an error, show it */
 			perror("Error");
 			exit(ret);
 		}
 		else
 		{
-			// parent code
+			pid_t limiter;
+			/* parent code */
 			free(cmd_args);
-			int limiter = fork();
+			limiter = fork();
 			if (limiter < 0)
 			{
 				exit(EXIT_FAILURE);
 			}
 			else if (limiter > 0)
 			{
-				// parent
+				/* parent */
 				int status_process;
 				int status_limiter;
 				waitpid(child, &status_process, 0);
@@ -533,7 +516,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				// limiter code
+				/* limiter code */
 				if (verbose)
 					printf("Limiting process %d\n", child);
 				limit_process(child, limit, include_children);
@@ -544,11 +527,11 @@ int main(int argc, char **argv)
 
 	while (1)
 	{
-		// look for the target process..or wait for it
+		/* look for the target process..or wait for it */
 		pid_t ret = 0;
 		if (pid_ok)
 		{
-			// search by pid
+			/* search by pid */
 			ret = find_process_by_pid(pid);
 			if (ret == 0)
 			{
@@ -561,7 +544,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			// search by file or path name
+			/* search by file or path name */
 			ret = find_process_by_name(exe);
 			if (ret == 0)
 			{
@@ -584,7 +567,7 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			printf("Process %d found\n", pid);
-			// control
+			/* control */
 			limit_process(pid, limit, include_children);
 		}
 		if (lazy)
