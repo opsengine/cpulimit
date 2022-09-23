@@ -175,17 +175,14 @@ int get_pid_max()
 {
 #if defined(__linux__)
 	// read /proc/sys/kernel/pid_max
-	static char buffer[1024];
-	FILE *fd = fopen("/proc/sys/kernel/pid_max", "r");
-	if (fd == NULL)
-		return -1;
-	if (fgets(buffer, sizeof(buffer), fd) == NULL)
+	int pid_max = -1;
+	FILE *fd;
+	if ((fd = fopen("/proc/sys/kernel/pid_max", "r")) != NULL)
 	{
+		fscanf(fd, "%d", &pid_max);
 		fclose(fd);
-		return -1;
 	}
-	fclose(fd);
-	return atoi(buffer);
+	return pid_max;
 #elif defined(__FreeBSD__)
 	return 99998;
 #elif defined(__APPLE__)
