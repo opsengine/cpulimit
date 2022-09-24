@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    permissions:
+      contents: read
+    strategy:
+      max-parallel: 20
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11, macos-12]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Compile dynamic
+        if: ${{ startsWith( matrix.os, 'macos-' ) }}
+        run: |
+          make
+      
+      - name: Compile static
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
+        run: |
+          sudo -E apt -y -qq update &> /dev/null
+          sudo -E apt -y -qq install gcc-12 &> /dev/null
+          sudo -E update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 &> /dev/null
+          make CFLAGS="-Werror=use-after-free" LDFLAGS="-static"
+
+      - name: Compile static
+        if: ${{ matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-18.04' }}
+        run: |
+          make LDFLAGS="-static"
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: cpulimit-${{ matrix.os }}
+          path: src/cpulimit
+
+  build-FreeBSD:
+    name: build-FreeBSD
+    permissions:
+      contents: read
+    strategy:
+      max-parallel: 20
+      matrix:
+        osver: ['12.3', '13.0', '13.1']
+    runs-on: macos-12
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Build in FreeBSD
+      uses: vmactions/freebsd-vm@v0
+      with:
+        release: ${{ matrix.osver }}
+        usesh: true
+        prepare: |
+          pkg install -y lang/gcc gmake
+        run: |
+          gmake
+
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: cpulimit-FreeBSD-${{ matrix.osver }}
+        path: src/cpulimit
