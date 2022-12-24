@@ -13,7 +13,7 @@ endif
 all: $(TARGET)
 
 $(TARGET): $(wildcard *.c *.h)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(filter-out process_iterator_%.c, $(filter %.c, $^)) -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $(filter-out process_iterator_%.c %.h, $^) -o $@
 
 clean:
 	rm -f *~ $(TARGET)
