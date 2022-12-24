@@ -180,10 +180,6 @@ void limit_process(pid_t pid, double limit, int include_children)
 	struct timespec twork;
 	/* slice of the slot in which the process is stopped */
 	struct timespec tsleep;
-	/* when the last twork has started */
-	struct timeval startwork;
-	/* when the last twork has finished */
-	struct timeval endwork;
 	/* generic list item */
 	struct list_node *node;
 	/* counter */
@@ -194,10 +190,8 @@ void limit_process(pid_t pid, double limit, int include_children)
 	double workingrate = -1;
 
 	/* initialization */
-	memset(&twork, 0, sizeof(struct timespec));
-	memset(&tsleep, 0, sizeof(struct timespec));
-	memset(&startwork, 0, sizeof(struct timeval));
-	memset(&endwork, 0, sizeof(struct timeval));
+	memset(&twork, 0, sizeof(twork));
+	memset(&tsleep, 0, sizeof(tsleep));
 
 	/* get a better priority */
 	increase_priority();
@@ -248,9 +242,9 @@ void limit_process(pid_t pid, double limit, int include_children)
 		else
 		{
 			/* adjust workingrate */
-			workingrate = (workingrate + EPSILON) /
-						  (pcpu + EPSILON) *
-						  (limit + EPSILON);
+			workingrate = limit *
+						  workingrate /
+						  (pcpu + EPSILON);
 		}
 		workingrate = MAX(MIN(workingrate, 1 - EPSILON), EPSILON);
 
@@ -289,9 +283,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 
 		/* now processes are free to run (same working slice for all) */
-		gettimeofday(&startwork, NULL);
 		nanosleep(&twork, NULL);
-		gettimeofday(&endwork, NULL);
 
 		if (tsleep.tv_nsec > 0 || tsleep.tv_sec > 0)
 		{
