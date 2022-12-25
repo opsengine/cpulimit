@@ -58,8 +58,6 @@ struct process
 	pid_t pid;
 	/* ppid of the process */
 	pid_t ppid;
-	/* start time (unix timestamp) */
-	time_t starttime;
 	/* cputime used by the process (in milliseconds) */
 	int cputime;
 	/* actual cpu usage estimation (value in range 0-1) */

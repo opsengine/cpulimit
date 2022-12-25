@@ -50,7 +50,6 @@ static int kproc2proc(kvm_t *kd, struct kinfo_proc *kproc, struct process *proc)
 	proc->pid = kproc->ki_pid;
 	proc->ppid = kproc->ki_ppid;
 	proc->cputime = kproc->ki_runtime / 1000;
-	proc->starttime = kproc->ki_start.tv_sec;
 	if ((args = kvm_getargv(kd, kproc, sizeof(proc->command))) == NULL)
 		return -1;
 	memcpy(proc->command, args[0], strlen(args[0]) + 1);

@@ -176,7 +176,6 @@ void update_process_group(struct process_group *pgroup)
 			{
 				double sample;
 				assert(tmp_process.pid == p->pid);
-				assert(tmp_process.starttime == p->starttime);
 				add_elem(pgroup->proclist, p);
 				if (dt < MIN_DT)
 					continue;

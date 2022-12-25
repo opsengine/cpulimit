@@ -51,7 +51,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 static int read_process_info(pid_t pid, struct process *p)
 {
 	char statfile[32], exefile[32], state;
-	long utime, stime, start_time;
+	long utime, stime;
 	FILE *fd;
 
 	p->pid = pid;
@@ -74,8 +74,8 @@ static int read_process_info(pid_t pid, struct process *p)
 	if (fd == NULL)
 		goto error_out2;
 
-	if (fscanf(fd, "%*d (%*[^)]) %c %d %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld %*d %*d %*d %*d %*d %*d %ld",
-			   &state, &p->ppid, &utime, &stime, &start_time) != 5 ||
+	if (fscanf(fd, "%*d (%*[^)]) %c %d %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
+			   &state, &p->ppid, &utime, &stime) != 4 ||
 		state == 'Z' || state == 'X')
 	{
 		fclose(fd);
@@ -83,7 +83,6 @@ static int read_process_info(pid_t pid, struct process *p)
 	}
 	fclose(fd);
 	p->cputime = (int)((utime + stime) * 1000 / HZ);
-	p->starttime = (long)(start_time / sysconf(_SC_CLK_TCK));
 	return 0;
 
 error_out1:
