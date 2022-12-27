@@ -116,7 +116,7 @@ static void print_usage(FILE *stream, int exit_code)
 	exit(exit_code);
 }
 
-static void increase_priority()
+static void increase_priority(void)
 {
 	/* find the best available nice value */
 	int old_priority = getpriority(PRIO_PROCESS, 0);
@@ -138,7 +138,7 @@ static void increase_priority()
 }
 
 /* Get the number of CPUs */
-static int get_ncpu()
+static int get_ncpu(void)
 {
 	int ncpu;
 #if defined(_SC_NPROCESSORS_ONLN)
@@ -155,22 +155,22 @@ static int get_ncpu()
 	return ncpu;
 }
 
-int get_pid_max()
+pid_t get_pid_max(void)
 {
 #if defined(__linux__)
 	/* read /proc/sys/kernel/pid_max */
-	int pid_max = -1;
+	long pid_max = -1;
 	FILE *fd;
 	if ((fd = fopen("/proc/sys/kernel/pid_max", "r")) != NULL)
 	{
-		fscanf(fd, "%d", &pid_max);
+		fscanf(fd, "%ld", &pid_max);
 		fclose(fd);
 	}
-	return pid_max;
+	return (pid_t)pid_max;
 #elif defined(__FreeBSD__)
-	return 99998;
+	return (pid_t)99999;
 #elif defined(__APPLE__)
-	return 99998;
+	return (pid_t)99998;
 #endif
 }
 
@@ -200,7 +200,8 @@ void limit_process(pid_t pid, double limit, int include_children)
 	init_process_group(&pgroup, pid, include_children);
 
 	if (verbose)
-		printf("Members in the process group owned by %d: %d\n", pgroup.target_pid, pgroup.proclist->count);
+		printf("Members in the process group owned by %ld: %ld\n",
+			   (long)pgroup.target_pid, (long)pgroup.proclist->count);
 
 	while (1)
 	{
@@ -274,7 +275,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			{
 				/* process is dead, remove it from family */
 				if (verbose)
-					fprintf(stderr, "SIGCONT failed. Process %d dead!\n", proc->pid);
+					fprintf(stderr, "SIGCONT failed. Process %ld dead!\n", (long)proc->pid);
 				/* remove process from group */
 				delete_node(pgroup.proclist, node);
 				remove_process(&pgroup, proc->pid);
@@ -297,7 +298,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 				{
 					/* process is dead, remove it from family */
 					if (verbose)
-						fprintf(stderr, "SIGSTOP failed. Process %d dead!\n", proc->pid);
+						fprintf(stderr, "SIGSTOP failed. Process %ld dead!\n", (long)proc->pid);
 					/* remove process from group */
 					delete_node(pgroup.proclist, node);
 					remove_process(&pgroup, proc->pid);
@@ -357,7 +358,7 @@ int main(int argc, char **argv)
 		switch (next_option)
 		{
 		case 'p':
-			pid = atoi(optarg);
+			pid = (pid_t)atol(optarg);
 			pid_ok = 1;
 			break;
 		case 'e':
@@ -500,17 +501,18 @@ int main(int argc, char **argv)
 				if (WIFEXITED(status_process))
 				{
 					if (verbose)
-						printf("Process %d terminated with exit status %d\n", child, (int)WEXITSTATUS(status_process));
+						printf("Process %ld terminated with exit status %d\n",
+							   (long)child, (int)WEXITSTATUS(status_process));
 					exit(WEXITSTATUS(status_process));
 				}
-				printf("Process %d terminated abnormally\n", child);
+				printf("Process %ld terminated abnormally\n", (long)child);
 				exit(status_process);
 			}
 			else
 			{
 				/* limiter code */
 				if (verbose)
-					printf("Limiting process %d\n", child);
+					printf("Limiting process %ld\n", (long)child);
 				limit_process(child, limit, include_children);
 				exit(0);
 			}
@@ -555,10 +557,11 @@ int main(int argc, char **argv)
 		{
 			if (ret == cpulimit_pid)
 			{
-				printf("Target process %d is cpulimit itself! Aborting because it makes no sense\n", ret);
+				printf("Target process %ld is cpulimit itself! Aborting because it makes no sense\n",
+					   (long)ret);
 				exit(1);
 			}
-			printf("Process %d found\n", pid);
+			printf("Process %ld found\n", (long)pid);
 			/* control */
 			limit_process(pid, limit, include_children);
 		}

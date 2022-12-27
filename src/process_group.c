@@ -26,6 +26,8 @@
 #include <libgen.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "process_iterator.h"
 #include "process_group.h"
@@ -35,7 +37,7 @@
 search_pid   : pid of the wanted process
 return:  pid of the found process, if successful
 		 negative pid, if the process does not exist or if the signal fails */
-int find_process_by_pid(pid_t pid)
+pid_t find_process_by_pid(pid_t pid)
 {
 	return (kill(pid, 0) == 0) ? pid : -pid;
 }
@@ -46,7 +48,7 @@ process: the name of the wanted process. it can be an absolute path name to the 
 return:  pid of the found process, if it is found
 		0, if it's not found
 		negative pid, if it is found but it's not possible to control it */
-int find_process_by_name(const char *process_name)
+pid_t find_process_by_name(const char *process_name)
 {
 	/* pid of the target process */
 	pid_t pid = -1;
@@ -94,7 +96,7 @@ int init_process_group(struct process_group *pgroup, int target_pid, int include
 	pgroup->target_pid = target_pid;
 	pgroup->include_children = include_children;
 	pgroup->proclist = (struct list *)malloc(sizeof(struct list));
-	init_list(pgroup->proclist, 4);
+	init_list(pgroup->proclist, sizeof(pid_t));
 	memset(&pgroup->last_update, 0, sizeof(pgroup->last_update));
 	update_process_group(pgroup);
 	return 0;
@@ -143,7 +145,7 @@ void update_process_group(struct process_group *pgroup)
 	filter.include_children = pgroup->include_children;
 	init_process_iterator(&it, &filter);
 	clear_list(pgroup->proclist);
-	init_list(pgroup->proclist, 4);
+	init_list(pgroup->proclist, sizeof(pid_t));
 
 	while (get_next_process(&it, &tmp_process) != -1)
 	{
@@ -155,7 +157,7 @@ void update_process_group(struct process_group *pgroup)
 			pgroup->proctable[hashkey] = malloc(sizeof(struct list));
 			tmp_process.cpu_usage = -1;
 			memcpy(new_process, &tmp_process, sizeof(struct process));
-			init_list(pgroup->proctable[hashkey], 4);
+			init_list(pgroup->proctable[hashkey], sizeof(pid_t));
 			add_elem(pgroup->proctable[hashkey], new_process);
 			add_elem(pgroup->proclist, new_process);
 		}

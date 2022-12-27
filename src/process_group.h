@@ -46,9 +46,9 @@ void update_process_group(struct process_group *pgroup);
 
 int close_process_group(struct process_group *pgroup);
 
-int find_process_by_pid(pid_t pid);
+pid_t find_process_by_pid(pid_t pid);
 
-int find_process_by_name(const char *process_name);
+pid_t find_process_by_name(const char *process_name);
 
 int remove_process(struct process_group *pgroup, int pid);
 

@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <libproc.h>
 
-int unique_nonzero_ints(int *arr_in, int len_in, int *arr_out)
+static int unique_nonzero_ints(int *arr_in, int len_in, int *arr_out)
 {
 	int *source = arr_in;
 	int len_out = 0;

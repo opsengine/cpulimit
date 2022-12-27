@@ -21,7 +21,7 @@
 
 #include <sys/vfs.h>
 
-static int check_proc()
+static int check_proc(void)
 {
 	struct statfs mnt;
 	if (statfs("/proc", &mnt) < 0)
@@ -51,13 +51,13 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 static int read_process_info(pid_t pid, struct process *p)
 {
 	char statfile[32], exefile[32], state;
-	long utime, stime;
+	long utime, stime, ppid;
 	FILE *fd;
 
 	p->pid = pid;
 
 	/* read command line */
-	sprintf(exefile, "/proc/%d/cmdline", p->pid);
+	sprintf(exefile, "/proc/%ld/cmdline", (long)p->pid);
 	fd = fopen(exefile, "r");
 	if (fd == NULL)
 		goto error_out1;
@@ -69,19 +69,20 @@ static int read_process_info(pid_t pid, struct process *p)
 	fclose(fd);
 
 	/* read stat file */
-	sprintf(statfile, "/proc/%d/stat", p->pid);
+	sprintf(statfile, "/proc/%ld/stat", (long)p->pid);
 	fd = fopen(statfile, "r");
 	if (fd == NULL)
 		goto error_out2;
 
-	if (fscanf(fd, "%*d (%*[^)]) %c %d %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
-			   &state, &p->ppid, &utime, &stime) != 4 ||
+	if (fscanf(fd, "%*d (%*[^)]) %c %ld %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
+			   &state, &ppid, &utime, &stime) != 4 ||
 		state == 'Z' || state == 'X')
 	{
 		fclose(fd);
 		goto error_out2;
 	}
 	fclose(fd);
+	p->ppid = (pid_t)ppid;
 	p->cputime = (int)((utime + stime) * 1000 / HZ);
 	return 0;
 
@@ -95,19 +96,19 @@ static pid_t getppid_of(pid_t pid)
 {
 	char statfile[32];
 	FILE *fd;
-	pid_t parent_pid = -1;
-	sprintf(statfile, "/proc/%d/stat", pid);
+	long ppid = -1;
+	sprintf(statfile, "/proc/%ld/stat", (long)pid);
 	if ((fd = fopen(statfile, "r")) != NULL)
 	{
-		fscanf(fd, "%*d (%*[^)]) %*c %d", &parent_pid);
+		fscanf(fd, "%*d (%*[^)]) %*c %ld", &ppid);
 		fclose(fd);
 	}
-	return parent_pid;
+	return (pid_t)ppid;
 }
 
 static int is_child_of(pid_t child_pid, pid_t parent_pid)
 {
-	int ppid = child_pid;
+	pid_t ppid = child_pid;
 	while (ppid > 1 && ppid != parent_pid)
 	{
 		ppid = getppid_of(ppid);
@@ -139,8 +140,10 @@ int get_next_process(struct process_iterator *it, struct process *p)
 	{
 		if (strtok(dit->d_name, "0123456789") != NULL)
 			continue;
-		p->pid = atoi(dit->d_name);
-		if (it->filter->pid != 0 && it->filter->pid != p->pid && !is_child_of(p->pid, it->filter->pid))
+		p->pid = (pid_t)atol(dit->d_name);
+		if (it->filter->pid != 0 &&
+			it->filter->pid != p->pid &&
+			!is_child_of(p->pid, it->filter->pid))
 			continue;
 		read_process_info(p->pid, p);
 		break;

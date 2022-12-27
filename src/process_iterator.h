@@ -23,6 +23,7 @@
 
 #define __PROCESS_ITERATOR_H
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <limits.h>
 #if defined(__linux__)
@@ -68,7 +69,7 @@ struct process
 
 struct process_filter
 {
-	int pid;
+	pid_t pid;
 	int include_children;
 	char program_name[PATH_MAX + 1];
 };
