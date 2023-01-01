@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) -Wall -Wextra -std=gnu89
+CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) -Wall -Wextra -Wno-unused-parameter -std=gnu89
 TARGET := cpulimit
 
 UNAME ?= $(shell uname)
