@@ -197,10 +197,6 @@ void limit_process(pid_t pid, double limit, int include_children)
 	/* 1 means that the process are using all the twork slice */
 	double workingrate = -1;
 
-	/* initialization */
-	memset(&twork, 0, sizeof(twork));
-	memset(&tsleep, 0, sizeof(tsleep));
-
 	/* get a better priority */
 	increase_priority();
 
