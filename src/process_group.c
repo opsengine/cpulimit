@@ -123,9 +123,9 @@ int close_process_group(struct process_group *pgroup)
 }
 
 /* returns t1-t2 in millisecond */
-/* static inline double timediff_in_ms(const struct timeval *t1, const struct timeval *t2) */
+/* static inline double timediff_in_ms(const struct timespec *t1, const struct timespec *t2) */
 #define timediff_in_ms(t1, t2) \
-	(((t1)->tv_sec - (t2)->tv_sec) * 1e3 + ((t1)->tv_usec - (t2)->tv_usec) / 1e3)
+	(((t1)->tv_sec - (t2)->tv_sec) * 1e3 + ((t1)->tv_nsec - (t2)->tv_nsec) / 1e6)
 
 /* parameter in range 0-1 */
 #define ALFA 0.08
@@ -136,9 +136,9 @@ void update_process_group(struct process_group *pgroup)
 	struct process_iterator it;
 	struct process tmp_process;
 	struct process_filter filter;
-	struct timeval now;
+	struct timespec now;
 	double dt;
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &now);
 	/* time elapsed from previous sample (in ms) */
 	dt = timediff_in_ms(&now, &pgroup->last_update);
 	filter.pid = pgroup->target_pid;
