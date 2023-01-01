@@ -208,8 +208,8 @@ void limit_process(pid_t pid, double limit, int include_children)
 	init_process_group(&pgroup, pid, include_children);
 
 	if (verbose)
-		printf("Members in the process group owned by %ld: %ld\n",
-			   (long)pgroup.target_pid, (long)pgroup.proclist->count);
+		printf("Members in the process group owned by %ld: %d\n",
+			   (long)pgroup.target_pid, pgroup.proclist->count);
 
 	while (1)
 	{
