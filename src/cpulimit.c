@@ -49,6 +49,14 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+/* inline void nsec2timespec(double nsec, struct timespec *t); */
+#define nsec2timespec(nsec, t)                             \
+	do                                                     \
+	{                                                      \
+		(t)->tv_sec = (time_t)((nsec) / 1e9);              \
+		(t)->tv_nsec = (long)((nsec) - (t)->tv_sec * 1e9); \
+	} while (0)
+
 #ifndef EPSILON
 #define EPSILON 1e-12
 #endif
@@ -250,12 +258,10 @@ void limit_process(pid_t pid, double limit, int include_children)
 		workingrate = MAX(MIN(workingrate, 1 - EPSILON), EPSILON);
 
 		twork_total_nsec = (double)TIME_SLOT * 1000 * workingrate;
-		twork.tv_sec = (time_t)(twork_total_nsec / 1e9);
-		twork.tv_nsec = (long)(twork_total_nsec - twork.tv_sec * 1e9);
+		nsec2timespec(twork_total_nsec, &twork);
 
 		tsleep_total_nsec = (double)TIME_SLOT * 1000 - twork_total_nsec;
-		tsleep.tv_sec = (time_t)(tsleep_total_nsec / 1e9);
-		tsleep.tv_nsec = (long)(tsleep_total_nsec - tsleep.tv_sec * 1e9);
+		nsec2timespec(tsleep_total_nsec, &tsleep);
 
 		if (verbose)
 		{
