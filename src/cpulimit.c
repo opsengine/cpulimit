@@ -314,7 +314,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 			/* now the processes are sleeping */
 			nanosleep(&tsleep, NULL);
 		}
-		c++;
+		c = (c + 1) % 200;
 	}
 	close_process_group(&pgroup);
 }
