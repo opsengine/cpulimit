@@ -36,7 +36,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
-#include <libgen.h>
 
 #include "process_group.h"
 #include "list.h"
@@ -88,7 +87,11 @@ int verbose = 0;
 int lazy = 0;
 
 /* SIGINT and SIGTERM signal handler */
+#ifdef __GNUC__
+static void quit(__attribute__((__unused__)) int sig)
+#else
 static void quit(int sig)
+#endif
 {
 	/* let all the processes continue if stopped */
 	struct list_node *node = NULL;
@@ -163,7 +166,7 @@ static int get_ncpu(void)
 	return ncpu;
 }
 
-pid_t get_pid_max(void)
+static pid_t get_pid_max(void)
 {
 #if defined(__linux__)
 	/* read /proc/sys/kernel/pid_max */
@@ -182,7 +185,7 @@ pid_t get_pid_max(void)
 #endif
 }
 
-void limit_process(pid_t pid, double limit, int include_children)
+static void limit_process(pid_t pid, double limit, int include_children)
 {
 	/* slice of the slot in which the process is allowed to run */
 	struct timespec twork;

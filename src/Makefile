@@ -1,9 +1,12 @@
 CC ?= gcc
-CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) -Wall -Wextra -Wno-unused-parameter -std=gnu89
+CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
+			-D_GNU_SOURCE -std=gnu89 \
+			-Wall -Wextra -pedantic \
+			-Wmissing-prototypes -Wstrict-prototypes \
+			-Wold-style-definition
 TARGET := cpulimit
 
 UNAME ?= $(shell uname)
-
 ifeq ($(UNAME), FreeBSD)
 LDFLAGS += -lkvm
 endif

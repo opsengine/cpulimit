@@ -24,6 +24,7 @@
 #define __PROCESS_GROUP_H
 
 #include <time.h>
+#include <string.h>
 
 #include "process_iterator.h"
 
@@ -31,6 +32,9 @@
 
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
+
+#define basename(x) \
+	((strrchr((x), '/') != NULL) ? (strrchr((x), '/') + 1) : (x))
 
 struct process_group
 {

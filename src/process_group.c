@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <libgen.h>
 #include <errno.h>
 #include <assert.h>
 #include <sys/types.h>

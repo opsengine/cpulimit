@@ -1,5 +1,6 @@
 CC ?= gcc
-CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) -Wall -Wextra -std=gnu89
+CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
+			-D_GNU_SOURCE -std=gnu89
 TARGETS = busy process_iterator_test
 SRC = ../src
 SYSLIBS ?= -lpthread

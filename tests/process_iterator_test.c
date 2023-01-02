@@ -27,7 +27,6 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
-#include <libgen.h>
 
 #include <process_iterator.h>
 #include <process_group.h>
