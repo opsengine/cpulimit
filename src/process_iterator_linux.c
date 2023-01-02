@@ -20,13 +20,14 @@
  */
 
 #include <sys/vfs.h>
+#include <linux/magic.h>
 
 static int check_proc(void)
 {
 	struct statfs mnt;
 	if (statfs("/proc", &mnt) < 0)
 		return 0;
-	if (mnt.f_type != 0x9fa0)
+	if (mnt.f_type != PROC_SUPER_MAGIC)
 		return 0;
 	return 1;
 }
