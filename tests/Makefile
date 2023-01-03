@@ -5,10 +5,14 @@ TARGETS = busy process_iterator_test
 SRC = ../src
 SYSLIBS ?= -lpthread
 LIBS := $(SRC)/list.c $(SRC)/process_iterator.c $(SRC)/process_group.c
-UNAME := $(shell uname)
 
+ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
+  LDFLAGS += -lrt
+endif
+
+UNAME ?= $(shell uname)
 ifeq ($(UNAME), FreeBSD)
-	LDFLAGS += -lkvm
+  LDFLAGS += -lkvm
 endif
 
 .PHONY: all clean
