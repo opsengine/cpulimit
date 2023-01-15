@@ -318,7 +318,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 	close_process_group(&pgroup);
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 	/* argument variables */
 	const char *exe = NULL;
@@ -350,8 +350,7 @@ int main(int argc, char **argv)
 	double limit;
 
 	/* get program name */
-	char *p = strrchr(argv[0], '/');
-	program_name = p == NULL ? argv[0] : (p + 1);
+	program_name = basename(argv[0]);
 	/* get current pid */
 	cpulimit_pid = getpid();
 	/* get cpu count */
