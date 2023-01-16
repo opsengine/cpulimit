@@ -26,18 +26,18 @@
 #include <stdio.h>
 #include <libproc.h>
 
-static int unique_nonzero_ints(int *arr_in, int len_in, int *arr_out)
+static int unique_nonzero_pids(pid_t *arr_in, int len_in, pid_t *arr_out)
 {
-	int *source = arr_in;
+	pid_t *source = arr_in;
 	int len_out = 0;
 	int i, j;
 	if (arr_out == NULL)
 		return -1;
 	if (arr_in == arr_out)
 	{
-		source = malloc(sizeof(int) * len_in);
-		memcpy(source, arr_in, sizeof(int) * len_in);
-		memset(arr_out, -1, sizeof(int) * len_in);
+		source = malloc(sizeof(pid_t) * len_in);
+		memcpy(source, arr_in, sizeof(pid_t) * len_in);
+		memset(arr_out, -1, sizeof(pid_t) * len_in);
 	}
 	for (i = 0; i < len_in; i++)
 	{
@@ -70,7 +70,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		return -1;
 	}
 	/* Allocate and populate it->pidlist */
-	if ((it->pidlist = (int *)malloc((it->count) * sizeof(int))) == NULL)
+	if ((it->pidlist = malloc((it->count) * sizeof(pid_t))) == NULL)
 	{
 		fprintf(stderr, "malloc: %s\n", strerror(errno));
 	}
@@ -79,7 +79,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 		fprintf(stderr, "proc_listpids: %s\n", strerror(errno));
 		return -1;
 	}
-	it->count = unique_nonzero_ints(it->pidlist, it->count, it->pidlist);
+	it->count = unique_nonzero_pids(it->pidlist, it->count, it->pidlist);
 	it->filter = filter;
 	return 0;
 }

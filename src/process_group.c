@@ -88,7 +88,7 @@ pid_t find_process_by_name(const char *process_name)
 	}
 }
 
-int init_process_group(struct process_group *pgroup, int target_pid, int include_children)
+int init_process_group(struct process_group *pgroup, pid_t target_pid, int include_children)
 {
 	/* hashtable initialization */
 	memset(&pgroup->proctable, 0, sizeof(pgroup->proctable));
@@ -202,7 +202,7 @@ void update_process_group(struct process_group *pgroup)
 	pgroup->last_update = now;
 }
 
-int remove_process(struct process_group *pgroup, int pid)
+int remove_process(struct process_group *pgroup, pid_t pid)
 {
 	int hashkey = pid_hashfn(pid);
 	struct list_node *node;

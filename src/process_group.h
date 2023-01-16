@@ -46,7 +46,7 @@ struct process_group
 	struct timespec last_update;
 };
 
-int init_process_group(struct process_group *pgroup, int target_pid, int include_children);
+int init_process_group(struct process_group *pgroup, pid_t target_pid, int include_children);
 
 void update_process_group(struct process_group *pgroup);
 
@@ -56,6 +56,6 @@ pid_t find_process_by_pid(pid_t pid);
 
 pid_t find_process_by_name(const char *process_name);
 
-int remove_process(struct process_group *pgroup, int pid);
+int remove_process(struct process_group *pgroup, pid_t pid);
 
 #endif

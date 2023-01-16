@@ -86,7 +86,7 @@ struct process_iterator
 #elif defined(__APPLE__)
 	int i;
 	int count;
-	int *pidlist;
+	pid_t *pidlist;
 #endif
 	struct process_filter *filter;
 };
