@@ -453,7 +453,7 @@ int main(int argc, char *argv[])
 		/* executable file */
 		const char *cmd = argv[optind];
 		/* command line arguments */
-		char **cmd_args = (char **)malloc((argc - optind + 1) * sizeof(char *));
+		char **cmd_args = malloc((argc - optind + 1) * sizeof(char *));
 		if (cmd_args == NULL)
 			exit(2);
 		for (i = 0; i < argc - optind; i++)

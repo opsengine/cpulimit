@@ -94,7 +94,7 @@ int init_process_group(struct process_group *pgroup, pid_t target_pid, int inclu
 	memset(&pgroup->proctable, 0, sizeof(pgroup->proctable));
 	pgroup->target_pid = target_pid;
 	pgroup->include_children = include_children;
-	pgroup->proclist = (struct list *)malloc(sizeof(struct list));
+	pgroup->proclist = malloc(sizeof(struct list));
 	init_list(pgroup->proclist, sizeof(pid_t));
 	memset(&pgroup->last_update, 0, sizeof(pgroup->last_update));
 	update_process_group(pgroup);
