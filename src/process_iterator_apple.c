@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <libproc.h>
+#include <string.h>
 
 static int unique_nonzero_pids(pid_t *arr_in, int len_in, pid_t *arr_out)
 {
@@ -86,12 +87,11 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 
 static int pti2proc(struct proc_taskallinfo *ti, struct process *process)
 {
-	int bytes;
 	process->pid = ti->pbsd.pbi_pid;
 	process->ppid = ti->pbsd.pbi_ppid;
 	process->cputime = (ti->ptinfo.pti_total_user + ti->ptinfo.pti_total_system) / 1000000;
-	bytes = strlen(ti->pbsd.pbi_comm);
-	memcpy(process->command, ti->pbsd.pbi_comm, (bytes < PATH_MAX ? bytes : PATH_MAX) + 1);
+	process->command[0] = '\0';
+	strncat(process->command, ti->pbsd.pbi_comm, MIN(PATH_MAX, MAXCOMLEN));
 	return 0;
 }
 
