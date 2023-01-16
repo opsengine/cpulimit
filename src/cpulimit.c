@@ -322,7 +322,6 @@ int main(int argc, char *argv[])
 {
 	/* argument variables */
 	const char *exe = NULL;
-	static char exe_name[PATH_MAX + 1];
 	int perclimit = 0;
 	int exe_ok = 0;
 	int pid_ok = 0;
@@ -366,10 +365,7 @@ int main(int argc, char *argv[])
 			pid_ok = 1;
 			break;
 		case 'e':
-			/* exe = optarg; */
-			*exe_name = '\0';
-			strncat(exe_name, optarg, PATH_MAX);
-			exe = basename(exe_name);
+			exe = basename(optarg);
 			exe_ok = 1;
 			break;
 		case 'l':
