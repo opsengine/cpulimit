@@ -1,5 +1,5 @@
 CC ?= gcc
-CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
+override CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
 			-D_GNU_SOURCE -std=gnu89
 TARGETS = busy process_iterator_test
 SRC = ../src
@@ -7,12 +7,12 @@ SYSLIBS ?= -lpthread
 LIBS := $(SRC)/list.c $(SRC)/process_iterator.c $(SRC)/process_group.c
 
 ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
-  LDFLAGS += -lrt
+  override LDFLAGS += -lrt
 endif
 
-UNAME ?= $(shell uname)
+override UNAME ?= $(shell uname)
 ifeq ($(UNAME), FreeBSD)
-  LDFLAGS += -lkvm
+  override LDFLAGS += -lkvm
 endif
 
 .PHONY: all clean
