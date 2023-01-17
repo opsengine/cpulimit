@@ -56,6 +56,15 @@
 		(t)->tv_nsec = (long)((nsec) - (t)->tv_sec * 1e9); \
 	} while (0)
 
+/* inline int sleep_timespec(struct timespec *t); */
+#if _POSIX_C_SOURCE >= 200809L
+#define sleep_timespec(t) \
+	(clock_nanosleep(CLOCK_MONOTONIC, 0, (t), NULL))
+#else
+#define sleep_timespec(t) \
+	(nanosleep((t), NULL))
+#endif
+
 #ifndef EPSILON
 #define EPSILON 1e-12
 #endif
@@ -289,7 +298,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		}
 
 		/* now processes are free to run (same working slice for all) */
-		nanosleep(&twork, NULL);
+		sleep_timespec(&twork);
 
 		if (tsleep.tv_nsec > 0 || tsleep.tv_sec > 0)
 		{
@@ -311,7 +320,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 				node = next_node;
 			}
 			/* now the processes are sleeping */
-			nanosleep(&tsleep, NULL);
+			sleep_timespec(&tsleep);
 		}
 		c = (c + 1) % 200;
 	}
@@ -347,6 +356,8 @@ int main(int argc, char *argv[])
 		{0, 0, 0, 0}};
 
 	double limit;
+
+	struct timespec wait_time = {2, 0};
 
 	/* get program name */
 	program_name = basename(argv[0]);
@@ -567,7 +578,8 @@ int main(int argc, char *argv[])
 		}
 		if (lazy)
 			break;
-		sleep(2);
+		/* wait for 2 seconds before next search */
+		sleep_timespec(&wait_time);
 	};
 
 	return 0;
