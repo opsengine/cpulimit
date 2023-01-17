@@ -3,17 +3,40 @@
 #include <pthread.h>
 #include <unistd.h>
 
-void *loop()
+/* Get the number of CPUs */
+static int get_ncpu(void)
+{
+	int ncpu;
+#if defined(_SC_NPROCESSORS_ONLN)
+	ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__APPLE__)
+	int mib[2] = {CTL_HW, HW_NCPU};
+	size_t len = sizeof(ncpu);
+	sysctl(mib, 2, &ncpu, &len, NULL, 0);
+#elif defined(_GNU_SOURCE)
+	ncpu = get_nprocs();
+#else
+	ncpu = -1;
+#endif
+	return ncpu;
+}
+
+#ifdef __GNUC__
+static void *loop(__attribute__((__unused__)) void *param)
+#else
+static void *loop(void *param)
+#endif
 {
 	while (1)
 		;
+	return NULL;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 
 	int i = 0;
-	int num_threads = 1;
+	int num_threads = get_ncpu();
 	if (argc == 2)
 		num_threads = atoi(argv[1]);
 	for (i = 0; i < num_threads - 1; i++)
@@ -26,6 +49,6 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 	}
-	loop();
+	loop(NULL);
 	return 0;
 }

@@ -1,6 +1,9 @@
 CC ?= gcc
 override CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
-			-D_GNU_SOURCE -std=gnu89
+			-D_GNU_SOURCE -std=gnu89 \
+			-Wall -Wextra -pedantic \
+			-Wmissing-prototypes -Wstrict-prototypes \
+			-Wold-style-definition
 TARGETS = busy process_iterator_test
 SRC = ../src
 SYSLIBS ?= -lpthread

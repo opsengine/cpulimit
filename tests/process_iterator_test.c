@@ -28,17 +28,21 @@
 #include <signal.h>
 #include <string.h>
 
-#include <process_iterator.h>
-#include <process_group.h>
+#include "process_iterator.h"
+#include "process_group.h"
 
 volatile sig_atomic_t child;
 
-void kill_child(int sig)
+#ifdef __GNUC__
+static void kill_child(__attribute__((__unused__)) int sig)
+#else
+static void kill_child(int sig)
+#endif
 {
 	kill(child, SIGINT);
 }
 
-void test_single_process()
+static void test_single_process(void)
 {
 	struct process_iterator it;
 	struct process process;
@@ -74,7 +78,7 @@ void test_single_process()
 	close_process_iterator(&it);
 }
 
-void test_multiple_process()
+static void test_multiple_process(void)
 {
 	struct process_iterator it;
 	struct process process;
@@ -106,7 +110,7 @@ void test_multiple_process()
 	kill(child, SIGINT);
 }
 
-void test_all_processes()
+static void test_all_processes(void)
 {
 	struct process_iterator it;
 	struct process process;
@@ -129,7 +133,7 @@ void test_all_processes()
 	close_process_iterator(&it);
 }
 
-void test_process_group_all()
+static void test_process_group_all(void)
 {
 	struct process_group pgroup;
 	struct list_node *node = NULL;
@@ -145,7 +149,7 @@ void test_process_group_all()
 	assert(close_process_group(&pgroup) == 0);
 }
 
-void test_process_group_single(int include_children)
+static void test_process_group_single(int include_children)
 {
 	struct process_group pgroup;
 	int i;
@@ -186,7 +190,7 @@ void test_process_group_single(int include_children)
 	kill(child, SIGINT);
 }
 
-void test_process_name(const char *command)
+static void test_process_name(const char *command)
 {
 	struct process_iterator it;
 	struct process process;
@@ -208,7 +212,7 @@ void test_process_name(const char *command)
 	close_process_iterator(&it);
 }
 
-void test_process_group_wrong_pid()
+static void test_process_group_wrong_pid(void)
 {
 	struct process_group pgroup;
 	assert(init_process_group(&pgroup, -1, 0) == 0);
@@ -222,7 +226,11 @@ void test_process_group_wrong_pid()
 	assert(close_process_group(&pgroup) == 0);
 }
 
-int main(int argc, char **argv)
+#ifdef __GNUC__
+int main(__attribute__((__unused__)) int argc, char *argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
 	test_single_process();
 	test_multiple_process();
