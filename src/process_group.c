@@ -32,6 +32,24 @@
 #include "process_group.h"
 #include "list.h"
 
+#if _POSIX_C_SOURCE >= 199309L
+#define get_time(ts) \
+	(clock_gettime(CLOCK_MONOTONIC, (ts)))
+#else
+static int get_time(struct timespec *ts)
+{
+	struct timeval tv;
+	memset(ts, 0, sizeof(*ts));
+	if (gettimeofday(&tv, NULL))
+	{
+		return -1;
+	}
+	ts->tv_sec = tv.tv_sec;
+	ts->tv_nsec = tv.tv_usec * 1000;
+	return 0;
+}
+#endif
+
 /* look for a process by pid
 search_pid   : pid of the wanted process
 return:  pid of the found process, if successful
@@ -137,7 +155,10 @@ void update_process_group(struct process_group *pgroup)
 	struct process_filter filter;
 	struct timespec now;
 	double dt;
-	clock_gettime(CLOCK_MONOTONIC, &now);
+	if (get_time(&now))
+	{
+		exit(1);
+	}
 	/* time elapsed from previous sample (in ms) */
 	dt = timediff_in_ms(&now, &pgroup->last_update);
 	filter.pid = pgroup->target_pid;
