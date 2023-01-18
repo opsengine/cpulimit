@@ -33,11 +33,13 @@ jobs:
         if: ${{ startsWith( matrix.os, 'macos-' ) }}
         run: |
           make
+          ./tests/process_iterator_test
 
       - name: Compile static
         if: ${{ startsWith( matrix.os, 'ubuntu-' ) }}
         run: |
           make LDFLAGS="-static"
+          ./tests/process_iterator_test
 
       - name: Upload
         uses: actions/upload-artifact@v3
@@ -67,6 +69,7 @@ jobs:
           pkg install -y lang/gcc gmake
         run: |
           gmake
+          ./tests/process_iterator_test
 
     - name: Upload
       uses: actions/upload-artifact@v3
