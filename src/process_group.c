@@ -38,7 +38,6 @@
 static int get_time(struct timespec *ts)
 {
 	struct timeval tv;
-	memset(ts, 0, sizeof(*ts));
 	if (gettimeofday(&tv, NULL))
 	{
 		return -1;
