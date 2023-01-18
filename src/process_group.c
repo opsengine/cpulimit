@@ -26,10 +26,17 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <sys/param.h>
+#endif
 
 #include "process_iterator.h"
 #include "process_group.h"
 #include "list.h"
+
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 
 #if _POSIX_C_SOURCE >= 199309L
 #define get_time(ts) \
@@ -78,7 +85,12 @@ pid_t find_process_by_name(const char *process_name)
 	while (get_next_process(&it, &proc) != -1)
 	{
 		/* process found */
+#ifdef __APPLE__
+		if (strncmp(proc.command, process_name,
+					MAX(strlen(proc.command) + 1, MAXCOMLEN)) == 0)
+#else
 		if (strcmp(basename(proc.command), process_name) == 0)
+#endif
 		{
 			pid = proc.pid;
 			break;

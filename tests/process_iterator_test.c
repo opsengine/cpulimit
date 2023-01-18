@@ -27,9 +27,16 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+#ifdef __APPLE__
+#include <sys/param.h>
+#endif
 
 #include "process_iterator.h"
 #include "process_group.h"
+
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 
 volatile sig_atomic_t child;
 
@@ -202,9 +209,10 @@ static void test_process_name(const char *command)
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
 #ifdef __APPLE__
-	/* proc_pidinfo only gives us the first 15 chars
+	/* proc_pidinfo only gives us the first MAXCOMLEN-1 (15) chars
 	 of the basename of the command on OSX. */
-	assert(strncmp(basename((char *)command), process.command, 15) == 0);
+	assert(strncmp(basename(command), process.command,
+				   MAX(strlen(process.command) + 1, MAXCOMLEN)) == 0);
 #else
 	assert(strcmp(command, process.command) == 0);
 #endif

@@ -90,8 +90,14 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process)
 	process->pid = ti->pbsd.pbi_pid;
 	process->ppid = ti->pbsd.pbi_ppid;
 	process->cputime = (ti->ptinfo.pti_total_user + ti->ptinfo.pti_total_system) / 1000000;
-	process->command[0] = '\0';
-	strncat(process->command, ti->pbsd.pbi_comm, MIN(PATH_MAX, MAXCOMLEN));
+	if (ti->pbsd.pbi_name[0] != '\0')
+	{
+		memcpy(process->command, ti->pbsd.pbi_name, sizeof(ti->pbsd.pbi_name));
+	}
+	else
+	{
+		memcpy(process->command, ti->pbsd.pbi_comm, sizeof(ti->pbsd.pbi_comm));
+	}
 	return 0;
 }
 
