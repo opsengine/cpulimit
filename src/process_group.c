@@ -24,7 +24,6 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -197,7 +196,6 @@ void update_process_group(struct process_group *pgroup)
 			else
 			{
 				double sample;
-				assert(tmp_process.pid == p->pid);
 				add_elem(pgroup->proclist, p);
 				if (dt < MIN_DT)
 					continue;
