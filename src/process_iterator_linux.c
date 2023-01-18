@@ -101,7 +101,8 @@ static pid_t getppid_of(pid_t pid)
 	sprintf(statfile, "/proc/%ld/stat", (long)pid);
 	if ((fd = fopen(statfile, "r")) != NULL)
 	{
-		fscanf(fd, "%*d (%*[^)]) %*c %ld", &ppid);
+		if (fscanf(fd, "%*d (%*[^)]) %*c %ld", &ppid) != 1)
+			ppid = -1;
 		fclose(fd);
 	}
 	return (pid_t)ppid;

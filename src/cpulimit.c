@@ -183,7 +183,8 @@ static pid_t get_pid_max(void)
 	FILE *fd;
 	if ((fd = fopen("/proc/sys/kernel/pid_max", "r")) != NULL)
 	{
-		fscanf(fd, "%ld", &pid_max);
+		if (fscanf(fd, "%ld", &pid_max) != 1)
+			pid_max = -1;
 		fclose(fd);
 	}
 	return (pid_t)pid_max;
