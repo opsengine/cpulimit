@@ -33,17 +33,9 @@ jobs:
         if: ${{ startsWith( matrix.os, 'macos-' ) }}
         run: |
           make
-      
-      - name: Compile static
-        if: ${{ matrix.os == 'ubuntu-22.04' }}
-        run: |
-          sudo -E apt -y -qq update &> /dev/null
-          sudo -E apt -y -qq install gcc-12 &> /dev/null
-          sudo -E update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 &> /dev/null
-          make CFLAGS="-Werror=use-after-free" LDFLAGS="-static"
 
       - name: Compile static
-        if: ${{ matrix.os == 'ubuntu-20.04' }}
+        if: ${{ startsWith( matrix.os, 'ubuntu-' ) }}
         run: |
           make LDFLAGS="-static"
 
