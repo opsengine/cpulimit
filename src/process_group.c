@@ -80,22 +80,16 @@ pid_t find_process_by_name(const char *process_name)
 		/* process found */
 		if (strcmp(basename(proc.command), process_name) == 0)
 		{
-			if (kill(proc.pid, 0) == -1 && errno == EPERM)
-			{
-				/* do not have permission */
-				return -1;
-			}
-			/* process is ok! */
 			pid = proc.pid;
 			break;
 		}
 	}
 	if (close_process_iterator(&it) != 0)
 		exit(1);
-	if (pid >= 0)
+	if (pid > 0)
 	{
-		/* ok, the process was found */
-		return pid;
+		/* the process was found */
+		return find_process_by_pid(pid);
 	}
 	else
 	{
