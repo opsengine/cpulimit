@@ -494,8 +494,8 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			pid_t limiter;
 			/* parent code */
+			pid_t limiter;
 			free(cmd_args);
 			limiter = fork();
 			if (limiter < 0)
