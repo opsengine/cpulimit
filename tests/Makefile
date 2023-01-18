@@ -9,13 +9,13 @@ SRC = ../src
 SYSLIBS ?= -lpthread
 LIBS := $(SRC)/list.c $(SRC)/process_iterator.c $(SRC)/process_group.c
 
-ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
-  override LDFLAGS += -lrt
-endif
-
-override UNAME ?= $(shell uname)
+UNAME ?= $(shell uname)
 ifeq ($(UNAME), FreeBSD)
   override LDFLAGS += -lkvm
+endif
+
+ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
+  override LDFLAGS += -lrt
 endif
 
 .PHONY: all clean
@@ -23,10 +23,10 @@ endif
 all: $(TARGETS)
 
 busy: busy.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(SYSLIBS) -o $@
+	$(CC) $(CFLAGS) $^ $(SYSLIBS) $(LDFLAGS) -o $@
 
 process_iterator_test: process_iterator_test.c $(LIBS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -I$(SRC) $^ $(SYSLIBS) -o $@
+	$(CC) $(CFLAGS) -I$(SRC) $^ $(LDFLAGS) -o $@
 
 clean:
 	rm -f *~ $(TARGETS)

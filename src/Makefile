@@ -6,13 +6,13 @@ override CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
 			-Wold-style-definition
 TARGET := cpulimit
 
-ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
-  override LDFLAGS += -lrt
-endif
-
-override UNAME ?= $(shell uname)
+UNAME ?= $(shell uname)
 ifeq ($(UNAME), FreeBSD)
   override LDFLAGS += -lkvm
+endif
+
+ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
+  override LDFLAGS += -lrt
 endif
 
 .PHONY: all clean
@@ -20,7 +20,7 @@ endif
 all: $(TARGET)
 
 $(TARGET): $(wildcard *.c *.h)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(filter-out process_iterator_%.c %.h, $^) -o $@
+	$(CC) $(CFLAGS) $(filter-out process_iterator_%.c %.h, $^) $(LDFLAGS) -o $@
 
 clean:
 	rm -f *~ $(TARGET)
