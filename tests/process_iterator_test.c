@@ -202,11 +202,11 @@ static void test_process_name(const char *command)
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
 #ifdef __APPLE__
-	/* proc_pidinfo only gives us the first 15 chars */
-	/* of the basename of the command on OSX. */
+	/* proc_pidinfo only gives us the first 15 chars
+	 of the basename of the command on OSX. */
 	assert(strncmp(basename((char *)command), process.command, 15) == 0);
 #else
-	assert(strncmp(command, process.command, strlen(process.command)) == 0);
+	assert(strcmp(command, process.command) == 0);
 #endif
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);
