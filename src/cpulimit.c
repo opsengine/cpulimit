@@ -262,9 +262,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		else
 		{
 			/* adjust workingrate */
-			workingrate = limit *
-						  workingrate /
-						  (pcpu + EPSILON);
+			workingrate = workingrate * limit / MAX(pcpu, EPSILON);
 		}
 		workingrate = MAX(MIN(workingrate, 1 - EPSILON), EPSILON);
 
