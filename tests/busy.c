@@ -2,6 +2,22 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
+#define MAX_PRIORITY -20
+
+static void increase_priority(void)
+{
+	/* find the best available nice value */
+	int priority;
+	setpriority(PRIO_PROCESS, 0, MAX_PRIORITY);
+	priority = getpriority(PRIO_PROCESS, 0);
+	while (priority > MAX_PRIORITY && setpriority(PRIO_PROCESS, 0, priority - 1) == 0)
+	{
+		priority--;
+	}
+}
 
 /* Get the number of CPUs */
 static int get_ncpu(void)
@@ -37,6 +53,7 @@ int main(int argc, char *argv[])
 
 	int i = 0;
 	int num_threads = get_ncpu();
+	increase_priority();
 	if (argc == 2)
 		num_threads = atoi(argv[1]);
 	for (i = 0; i < num_threads - 1; i++)

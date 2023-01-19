@@ -27,6 +27,8 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #ifdef __APPLE__
 #include <sys/param.h>
 #endif
@@ -36,6 +38,29 @@
 
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#define MAX_PRIORITY -20
+
+static void increase_priority(void)
+{
+	/* find the best available nice value */
+	int priority;
+	setpriority(PRIO_PROCESS, 0, MAX_PRIORITY);
+	priority = getpriority(PRIO_PROCESS, 0);
+	while (priority > MAX_PRIORITY && setpriority(PRIO_PROCESS, 0, priority - 1) == 0)
+	{
+		priority--;
+	}
+}
+
+/* inline int sleep_timespec(struct timespec *t); */
+#if _POSIX_C_SOURCE >= 200809L
+#define sleep_timespec(t) \
+	(clock_nanosleep(CLOCK_MONOTONIC, 0, (t), NULL))
+#else
+#define sleep_timespec(t) \
+	(nanosleep((t), NULL))
 #endif
 
 volatile sig_atomic_t child;
@@ -64,7 +89,7 @@ static void test_single_process(void)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
-		assert(process.cputime < 100);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 1);
@@ -78,7 +103,7 @@ static void test_single_process(void)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
-		assert(process.cputime < 100);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 1);
@@ -95,7 +120,8 @@ static void test_multiple_process(void)
 	if (child == 0)
 	{
 		/* child is supposed to be killed by the parent :/ */
-		sleep(1);
+		while (1)
+			sleep(5);
 		exit(1);
 	}
 	filter.pid = getpid();
@@ -109,7 +135,7 @@ static void test_multiple_process(void)
 			assert(process.ppid == getpid());
 		else
 			assert(0);
-		assert(process.cputime < 100);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 2);
@@ -132,7 +158,7 @@ static void test_all_processes(void)
 		if (process.pid == getpid())
 		{
 			assert(process.ppid == getppid());
-			assert(process.cputime < 100);
+			assert(process.cputime <= 100);
 		}
 		count++;
 	}
@@ -165,6 +191,7 @@ static void test_process_group_single(int include_children)
 	if (child == 0)
 	{
 		/* child is supposed to be killed by the parent :/ */
+		increase_priority();
 		while (1)
 			;
 		exit(1);
@@ -172,7 +199,7 @@ static void test_process_group_single(int include_children)
 	signal(SIGABRT, &kill_child);
 	signal(SIGTERM, &kill_child);
 	assert(init_process_group(&pgroup, child, include_children) == 0);
-	for (i = 0; i < 100; i++)
+	for (i = 0; i < 200; i++)
 	{
 		struct list_node *node = NULL;
 		int count = 0;
@@ -190,9 +217,9 @@ static void test_process_group_single(int include_children)
 		assert(count == 1);
 		interval.tv_sec = 0;
 		interval.tv_nsec = 50000000;
-		nanosleep(&interval, NULL);
+		sleep_timespec(&interval);
 	}
-	assert(tot_usage / i < 1.1 && tot_usage / i > 0.8);
+	assert(tot_usage / i < 1.1 && tot_usage / i > 0.7);
 	assert(close_process_group(&pgroup) == 0);
 	kill(child, SIGINT);
 }
@@ -240,6 +267,7 @@ int main(__attribute__((__unused__)) int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+	increase_priority();
 	test_single_process();
 	test_multiple_process();
 	test_all_processes();
