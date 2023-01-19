@@ -84,7 +84,7 @@ static int read_process_info(pid_t pid, struct process *p)
 	}
 	fclose(fd);
 	p->ppid = (pid_t)ppid;
-	p->cputime = (int)((utime + stime) * 1000.0 / HZ);
+	p->cputime = utime * 1000.0 / HZ + stime * 1000.0 / HZ;
 	return 0;
 
 error_out1:

@@ -60,7 +60,7 @@ struct process
 	/* ppid of the process */
 	pid_t ppid;
 	/* cputime used by the process (in milliseconds) */
-	int cputime;
+	double cputime;
 	/* actual cpu usage estimation (value in range 0-1) */
 	double cpu_usage;
 	/* absolute path of the executable file */
