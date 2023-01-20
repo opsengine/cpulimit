@@ -217,18 +217,26 @@ static void test_process_group_single(int include_children)
 	kill(child, SIGINT);
 }
 
-static void test_process_name(char *command)
+char *command = NULL;
+
+static void test_process_name(void)
 {
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
+	const char *command_basename;
+	const char *process_basename;
+	int cmp_len;
 	filter.pid = getpid();
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
-	assert(strcmp(basename(command), basename(process.command)) == 0);
+	command_basename = basename(command);
+	process_basename = basename(process.command);
+	cmp_len = process.max_cmd_len - (process_basename - process.command);
+	assert(strncmp(command_basename, process_basename, cmp_len) == 0);
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);
 }
@@ -247,12 +255,24 @@ static void test_process_group_wrong_pid(void)
 	assert(close_process_group(&pgroup) == 0);
 }
 
+static void test_find_process_by_pid(void)
+{
+	assert(find_process_by_pid(getpid()) == getpid());
+}
+
+static void test_find_process_by_name(void)
+{
+	assert(find_process_by_name(command) == getpid());
+	assert(find_process_by_name("") == 0);
+}
+
 #ifdef __GNUC__
 int main(__attribute__((__unused__)) int argc, char *argv[])
 #else
 int main(int argc, char *argv[])
 #endif
 {
+	command = argv[0];
 	increase_priority();
 	test_single_process();
 	test_multiple_process();
@@ -261,6 +281,8 @@ int main(int argc, char *argv[])
 	test_process_group_single(0);
 	test_process_group_single(1);
 	test_process_group_wrong_pid();
-	test_process_name(argv[0]);
+	test_process_name();
+	test_find_process_by_pid();
+	test_find_process_by_name();
 	return 0;
 }
