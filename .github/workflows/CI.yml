@@ -34,12 +34,16 @@ jobs:
         run: |
           make
           sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
 
       - name: Compile static
         if: ${{ startsWith( matrix.os, 'ubuntu-' ) }}
         run: |
           make LDFLAGS="-static"
           sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
 
       - name: Upload
         uses: actions/upload-artifact@v3
@@ -70,6 +74,8 @@ jobs:
         run: |
           gmake
           sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
 
     - name: Upload
       uses: actions/upload-artifact@v3
