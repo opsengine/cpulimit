@@ -62,6 +62,7 @@ static int read_process_info(pid_t pid, struct process *p)
 	fd = fopen(exefile, "r");
 	if (fd == NULL)
 		goto error_out1;
+	p->max_cmd_len = sizeof(p->command) - 1;
 	if (fgets(p->command, sizeof(p->command), fd) == NULL)
 	{
 		fclose(fd);

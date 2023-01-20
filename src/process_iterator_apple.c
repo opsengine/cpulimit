@@ -92,11 +92,13 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process)
 	process->cputime = ti->ptinfo.pti_total_user / 1e6 + ti->ptinfo.pti_total_system / 1e6;
 	if (ti->pbsd.pbi_name[0] != '\0')
 	{
-		memcpy(process->command, ti->pbsd.pbi_name, sizeof(ti->pbsd.pbi_name));
+		process->max_cmd_len = MIN(sizeof(process->command), sizeof(ti->pbsd.pbi_name)) - 1;
+		memcpy(process->command, ti->pbsd.pbi_name, process->max_cmd_len + 1);
 	}
 	else
 	{
-		memcpy(process->command, ti->pbsd.pbi_comm, sizeof(ti->pbsd.pbi_comm));
+		process->max_cmd_len = MIN(sizeof(process->command), sizeof(ti->pbsd.pbi_comm)) - 1;
+		memcpy(process->command, ti->pbsd.pbi_comm, process->max_cmd_len + 1);
 	}
 	return 0;
 }

@@ -331,7 +331,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 int main(int argc, char *argv[])
 {
 	/* argument variables */
-	const char *exe = NULL;
+	char *exe = NULL;
 	int perclimit = 0;
 	int exe_ok = 0;
 	int pid_ok = 0;
@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
 			pid_ok = 1;
 			break;
 		case 'e':
-			exe = basename(optarg);
+			exe = optarg;
 			exe_ok = 1;
 			break;
 		case 'l':

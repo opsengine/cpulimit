@@ -29,16 +29,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#ifdef __APPLE__
-#include <sys/param.h>
-#endif
 
 #include "process_iterator.h"
 #include "process_group.h"
-
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
 
 #define MAX_PRIORITY -20
 
@@ -224,7 +217,7 @@ static void test_process_group_single(int include_children)
 	kill(child, SIGINT);
 }
 
-static void test_process_name(const char *command)
+static void test_process_name(char *command)
 {
 	struct process_iterator it;
 	struct process process;
@@ -235,14 +228,7 @@ static void test_process_name(const char *command)
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
-#ifdef __APPLE__
-	/* proc_pidinfo only gives us the first MAXCOMLEN-1 (15) chars
-	 of the basename of the command on OSX. */
-	assert(strncmp(basename(command), process.command,
-				   MAX(strlen(process.command) + 1, MAXCOMLEN)) == 0);
-#else
-	assert(strcmp(command, process.command) == 0);
-#endif
+	assert(strcmp(basename(command), basename(process.command)) == 0);
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);
 }

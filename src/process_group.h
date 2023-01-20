@@ -33,6 +33,7 @@
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
 
+#undef basename
 #define basename(x) \
 	((strrchr((x), '/') != NULL) ? (strrchr((x), '/') + 1) : (x))
 
@@ -54,7 +55,7 @@ int close_process_group(struct process_group *pgroup);
 
 pid_t find_process_by_pid(pid_t pid);
 
-pid_t find_process_by_name(const char *process_name);
+pid_t find_process_by_name(char *process_name);
 
 int remove_process(struct process_group *pgroup, pid_t pid);
 

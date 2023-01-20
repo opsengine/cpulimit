@@ -26,17 +26,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
-#ifdef __APPLE__
-#include <sys/param.h>
-#endif
 
 #include "process_iterator.h"
 #include "process_group.h"
 #include "list.h"
-
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
 
 #if _POSIX_C_SOURCE >= 199309L
 #define get_time(ts) \
@@ -70,7 +63,7 @@ process: the name of the wanted process. it can be an absolute path name to the 
 return:  pid of the found process, if it is found
 		0, if it's not found
 		negative pid, if it is found but it's not possible to control it */
-pid_t find_process_by_name(const char *process_name)
+pid_t find_process_by_name(char *process_name)
 {
 	/* pid of the target process */
 	pid_t pid = -1;
@@ -79,18 +72,19 @@ pid_t find_process_by_name(const char *process_name)
 	struct process_iterator it;
 	struct process proc;
 	struct process_filter filter;
+	const char *process_basename = basename(process_name);
+	const char *command_basename;
+	int cmp_len;
 	filter.pid = 0;
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &proc) != -1)
 	{
+		command_basename = basename(proc.command);
+		cmp_len = proc.max_cmd_len - (command_basename - proc.command);
 		/* process found */
-#ifdef __APPLE__
-		if (strncmp(proc.command, process_name,
-					MAX(strlen(proc.command) + 1, MAXCOMLEN)) == 0)
-#else
-		if (strcmp(basename(proc.command), process_name) == 0)
-#endif
+		if (cmp_len > 0 && command_basename[0] != '\0' &&
+			strncmp(command_basename, process_basename, cmp_len) == 0)
 		{
 			pid = proc.pid;
 			break;

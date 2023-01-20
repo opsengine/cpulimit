@@ -52,6 +52,13 @@
 #include <kvm.h>
 #endif
 
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /* process descriptor */
 struct process
 {
@@ -65,6 +72,8 @@ struct process
 	double cpu_usage;
 	/* absolute path of the executable file */
 	char command[PATH_MAX + 1];
+	/* maximum command length */
+	int max_cmd_len;
 };
 
 struct process_filter

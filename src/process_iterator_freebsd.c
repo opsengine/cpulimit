@@ -53,6 +53,7 @@ static int kproc2proc(kvm_t *kd, struct kinfo_proc *kproc, struct process *proc)
 	if ((args = kvm_getargv(kd, kproc, sizeof(proc->command))) == NULL)
 		return -1;
 	memcpy(proc->command, args[0], strlen(args[0]) + 1);
+	proc->max_cmd_len = sizeof(proc->command) - 1;
 	return 0;
 }
 
