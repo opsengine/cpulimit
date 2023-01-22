@@ -112,7 +112,10 @@ int init_process_group(struct process_group *pgroup, pid_t target_pid, int inclu
 	pgroup->include_children = include_children;
 	pgroup->proclist = malloc(sizeof(struct list));
 	init_list(pgroup->proclist, sizeof(pid_t));
-	memset(&pgroup->last_update, 0, sizeof(pgroup->last_update));
+	if (get_time(&pgroup->last_update))
+	{
+		exit(-1);
+	}
 	update_process_group(pgroup);
 	return 0;
 }
