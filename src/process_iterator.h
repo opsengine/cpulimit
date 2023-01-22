@@ -80,7 +80,6 @@ struct process_filter
 {
 	pid_t pid;
 	int include_children;
-	char program_name[PATH_MAX + 1];
 };
 
 struct process_iterator
