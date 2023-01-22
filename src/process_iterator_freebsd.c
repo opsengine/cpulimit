@@ -69,6 +69,27 @@ static int get_single_process(kvm_t *kd, pid_t pid, struct process *process)
 	return 0;
 }
 
+static pid_t getppid_of(kvm_t *kd, pid_t pid)
+{
+	int count;
+	struct kinfo_proc *kproc = kvm_getprocs(kd, KERN_PROC_PID, pid, &count);
+	if (count == 0 || kproc == NULL)
+	{
+		return -1;
+	}
+	return kproc->ki_ppid;
+}
+
+static int is_child_of(kvm_t *kd, pid_t child_pid, pid_t parent_pid)
+{
+	pid_t ppid = child_pid;
+	while (ppid > 1 && ppid != parent_pid)
+	{
+		ppid = getppid_of(kd, ppid);
+	}
+	return ppid == parent_pid;
+}
+
 int get_next_process(struct process_iterator *it, struct process *p)
 {
 	if (it->i == it->count)
@@ -98,7 +119,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		{
 			kproc2proc(it->kd, kproc, p);
 			it->i++;
-			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
+			if (p->pid != it->filter->pid &&
+				!is_child_of(it->kd, p->pid, it->filter->pid))
 				continue;
 			return 0;
 		}

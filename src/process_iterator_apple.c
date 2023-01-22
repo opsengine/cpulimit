@@ -123,6 +123,26 @@ static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti)
 	return 0;
 }
 
+static pid_t getppid_of(pid_t pid)
+{
+	struct proc_taskallinfo ti;
+	if (get_process_pti(pid, &ti) == 0)
+	{
+		return ti.pbsd.pbi_ppid;
+	}
+	return (pid_t)(-1);
+}
+
+static int is_child_of(pid_t child_pid, pid_t parent_pid)
+{
+	pid_t ppid = child_pid;
+	while (ppid > 1 && ppid != parent_pid)
+	{
+		ppid = getppid_of(ppid);
+	}
+	return ppid == parent_pid;
+}
+
 int get_next_process(struct process_iterator *it, struct process *p)
 {
 	if (it->i == it->count)
@@ -157,7 +177,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			it->i++;
 			if (p->pid != it->pidlist[it->i - 1]) /* I don't know why this can happen */
 				continue;
-			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
+			if (p->pid != it->filter->pid && !is_child_of(p->pid, it->filter->pid))
 				continue;
 			return 0;
 		}
