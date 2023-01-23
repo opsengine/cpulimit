@@ -23,6 +23,7 @@
 #include <sys/user.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <string.h>
 
 int init_process_iterator(struct process_iterator *it, struct process_filter *filter)
 {
@@ -50,10 +51,14 @@ static int kproc2proc(kvm_t *kd, struct kinfo_proc *kproc, struct process *proc)
 	proc->pid = kproc->ki_pid;
 	proc->ppid = kproc->ki_ppid;
 	proc->cputime = kproc->ki_runtime / 1000.0;
-	if ((args = kvm_getargv(kd, kproc, sizeof(proc->command))) == NULL)
-		return -1;
-	memcpy(proc->command, args[0], strlen(args[0]) + 1);
 	proc->max_cmd_len = sizeof(proc->command) - 1;
+	if ((args = kvm_getargv(kd, kproc, sizeof(proc->command))) == NULL)
+	{
+		proc->command[0] = '\0';
+		return -1;
+	}
+	strncpy(proc->command, args[0], proc->max_cmd_len);
+	proc->command[proc->max_cmd_len] = '\0';
 	return 0;
 }
 
