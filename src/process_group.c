@@ -57,6 +57,32 @@ pid_t find_process_by_pid(pid_t pid)
 	return (kill(pid, 0) == 0) ? pid : -pid;
 }
 
+static pid_t getppid_of(pid_t pid)
+{
+	/* process iterator */
+	int ret;
+	struct process_iterator it;
+	struct process proc;
+	struct process_filter filter;
+	filter.pid = pid;
+	filter.include_children = 0;
+	if (init_process_iterator(&it, &filter) != 0)
+		exit(1);
+	ret = get_next_process(&it, &proc);
+	if (close_process_iterator(&it) != 0)
+		exit(1);
+	return ret == 0 ? proc.ppid : (pid_t)(-1);
+}
+
+static int is_child_of(pid_t child_pid, pid_t parent_pid)
+{
+	while (child_pid > 1 && child_pid != parent_pid)
+	{
+		child_pid = getppid_of(child_pid);
+	}
+	return child_pid == parent_pid;
+}
+
 /* look for a process with a given name
 process: the name of the wanted process. it can be an absolute path name to the executable file
 		or just the file name
@@ -86,8 +112,21 @@ pid_t find_process_by_name(char *process_name)
 		if (cmp_len > 0 && command_basename[0] != '\0' &&
 			strncmp(command_basename, process_basename, cmp_len) == 0)
 		{
-			pid = proc.pid;
-			break;
+			if (pid < 0)
+			{
+				pid = proc.pid;
+			}
+			else if (is_child_of(pid, proc.pid))
+			{
+				pid = proc.pid;
+			}
+			else if (is_child_of(proc.pid, pid))
+			{
+			}
+			else
+			{
+				pid = MIN(proc.pid, pid);
+			}
 		}
 	}
 	if (close_process_iterator(&it) != 0)
