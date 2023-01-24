@@ -96,27 +96,14 @@ int verbose = 0;
 int lazy = 0;
 
 /* SIGINT and SIGTERM signal handler */
+volatile sig_atomic_t quit_flag = 0;
 #ifdef __GNUC__
 static void quit(__attribute__((__unused__)) int sig)
 #else
 static void quit(int sig)
 #endif
 {
-	/* let all the processes continue if stopped */
-	struct list_node *node = NULL;
-	if (pgroup.proclist != NULL)
-	{
-		for (node = pgroup.proclist->first; node != NULL; node = node->next)
-		{
-			struct process *p = (struct process *)(node->data);
-			kill(p->pid, SIGCONT);
-		}
-		close_process_group(&pgroup);
-	}
-	/* fix ^C little problem */
-	printf("\r");
-	fflush(stdout);
-	exit(0);
+	quit_flag = 1;
 }
 
 static void print_usage(FILE *stream, int exit_code)
@@ -222,7 +209,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		printf("Members in the process group owned by %ld: %d\n",
 			   (long)pgroup.target_pid, pgroup.proclist->count);
 
-	while (1)
+	while (!quit_flag)
 	{
 		/* total cpu actual usage (range 0-1) */
 		/* 1 means that the processes are using 100% cpu */
@@ -325,7 +312,24 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		}
 		c = (c + 1) % 200;
 	}
+
+	if (quit_flag)
+	{
+		for (node = pgroup.proclist->first; node != NULL; node = node->next)
+		{
+			struct process *p = (struct process *)(node->data);
+			kill(p->pid, SIGCONT);
+		}
+	}
+
 	close_process_group(&pgroup);
+
+	if (quit_flag)
+	{
+		/* fix ^C little problem */
+		printf("\r");
+		exit(0);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -359,6 +363,8 @@ int main(int argc, char *argv[])
 	double limit;
 
 	struct timespec wait_time = {2, 0};
+
+	struct sigaction sa;
 
 	/* get program name */
 	program_name = basename(argv[0]);
@@ -447,8 +453,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* all arguments are ok! */
-	signal(SIGINT, quit);
-	signal(SIGTERM, quit);
+	sa.sa_handler = quit;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 
 	/* print the number of available cpu */
 	if (verbose)
@@ -526,7 +535,6 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Limiting process %ld\n", (long)child);
 				limit_process(child, limit, include_children);
-				exit(0);
 			}
 		}
 	}
