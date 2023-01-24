@@ -123,7 +123,7 @@ static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti)
 	return 0;
 }
 
-static pid_t getppid_of(pid_t pid)
+pid_t getppid_of(pid_t pid)
 {
 	struct proc_taskallinfo ti;
 	if (get_process_pti(pid, &ti) == 0)
@@ -131,16 +131,6 @@ static pid_t getppid_of(pid_t pid)
 		return ti.pbsd.pbi_ppid;
 	}
 	return (pid_t)(-1);
-}
-
-static int is_child_of(pid_t child_pid, pid_t parent_pid)
-{
-	pid_t ppid = child_pid;
-	while (ppid > 1 && ppid != parent_pid)
-	{
-		ppid = getppid_of(ppid);
-	}
-	return ppid == parent_pid;
 }
 
 int get_next_process(struct process_iterator *it, struct process *p)

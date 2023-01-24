@@ -105,4 +105,8 @@ int get_next_process(struct process_iterator *i, struct process *p);
 
 int close_process_iterator(struct process_iterator *i);
 
+int is_child_of(pid_t child_pid, pid_t parent_pid);
+
+pid_t getppid_of(pid_t pid);
+
 #endif

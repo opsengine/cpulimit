@@ -94,11 +94,13 @@ error_out2:
 	return -1;
 }
 
-static pid_t getppid_of(pid_t pid)
+pid_t getppid_of(pid_t pid)
 {
 	char statfile[32];
 	FILE *fd;
 	long ppid = -1;
+	if (pid <= 0)
+		return (pid_t)(-1);
 	sprintf(statfile, "/proc/%ld/stat", (long)pid);
 	if ((fd = fopen(statfile, "r")) != NULL)
 	{
@@ -107,16 +109,6 @@ static pid_t getppid_of(pid_t pid)
 		fclose(fd);
 	}
 	return (pid_t)ppid;
-}
-
-static int is_child_of(pid_t child_pid, pid_t parent_pid)
-{
-	pid_t ppid = child_pid;
-	while (ppid > 1 && ppid != parent_pid)
-	{
-		ppid = getppid_of(ppid);
-	}
-	return ppid == parent_pid;
 }
 
 int get_next_process(struct process_iterator *it, struct process *p)
