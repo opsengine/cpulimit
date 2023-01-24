@@ -74,23 +74,37 @@ static int get_single_process(kvm_t *kd, pid_t pid, struct process *process)
 	return 0;
 }
 
+static pid_t _getppid_of(kvm_t *kd, pid_t pid)
+{
+	int count;
+	struct kinfo_proc *kproc = kvm_getprocs(kd, KERN_PROC_PID, pid, &count);
+	return (count == 0 || kproc == NULL) ? (pid_t)(-1) : kproc->ki_ppid;
+}
+
 pid_t getppid_of(pid_t pid)
 {
-	/* process iterator */
-	int ret;
-	struct process_iterator it;
-	struct process proc;
-	struct process_filter filter;
-	if (pid <= 0)
+	static char errbuf[_POSIX2_LINE_MAX];
+	kvm_t *kd;
+	pid_t ppid;
+	if ((kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf)) == NULL)
+	{
+		fprintf(stderr, "kvm_open: %s\n", errbuf);
 		return (pid_t)(-1);
-	filter.pid = pid;
-	filter.include_children = 0;
-	if (init_process_iterator(&it, &filter) != 0)
-		exit(1);
-	ret = get_next_process(&it, &proc);
-	if (close_process_iterator(&it) != 0)
-		exit(1);
-	return ret == 0 ? proc.ppid : (pid_t)(-1);
+	}
+	ppid = _getppid_of(kd, pid);
+	kvm_close(kd);
+	return ppid;
+}
+
+static int _is_child_of(kvm_t *kd, pid_t child_pid, pid_t parent_pid)
+{
+	if (child_pid <= 0 || parent_pid <= 0)
+		return 0;
+	while (child_pid > 1 && child_pid != parent_pid)
+	{
+		child_pid = _getppid_of(kd, child_pid);
+	}
+	return child_pid == parent_pid;
 }
 
 int get_next_process(struct process_iterator *it, struct process *p)
@@ -123,7 +137,7 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			kproc2proc(it->kd, kproc, p);
 			it->i++;
 			if (p->pid != it->filter->pid &&
-				!is_child_of(p->pid, it->filter->pid))
+				!_is_child_of(it->kd, p->pid, it->filter->pid))
 				continue;
 			return 0;
 		}
