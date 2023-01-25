@@ -141,16 +141,12 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			!is_child_of(p->pid, it->filter->pid))
 			continue;
 		read_process_info(p->pid, p);
-		break;
+		return 0;
 	}
-	if (dit == NULL)
-	{
-		/* end of processes */
-		closedir(it->dip);
-		it->dip = NULL;
-		return -1;
-	}
-	return 0;
+	/* end of processes */
+	closedir(it->dip);
+	it->dip = NULL;
+	return -1;
 }
 
 int close_process_iterator(struct process_iterator *it)

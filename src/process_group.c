@@ -73,15 +73,13 @@ pid_t find_process_by_name(char *process_name)
 	struct process proc;
 	struct process_filter filter;
 	const char *process_basename = basename(process_name);
-	const char *command_basename;
-	int cmp_len;
 	filter.pid = 0;
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &proc) != -1)
 	{
-		command_basename = basename(proc.command);
-		cmp_len = proc.max_cmd_len - (command_basename - proc.command);
+		const char *command_basename = basename(proc.command);
+		int cmp_len = proc.max_cmd_len - (command_basename - proc.command);
 		/* process found */
 		if (cmp_len > 0 && command_basename[0] != '\0' &&
 			strncmp(command_basename, process_basename, cmp_len) == 0)
