@@ -85,7 +85,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 	return 0;
 }
 
-static int pti2proc(struct proc_taskallinfo *ti, struct process *process)
+static void pti2proc(struct proc_taskallinfo *ti, struct process *process)
 {
 	process->pid = ti->pbsd.pbi_pid;
 	process->ppid = ti->pbsd.pbi_ppid;
@@ -100,7 +100,6 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process)
 		process->max_cmd_len = MIN(sizeof(process->command), sizeof(ti->pbsd.pbi_comm)) - 1;
 		memcpy(process->command, ti->pbsd.pbi_comm, process->max_cmd_len + 1);
 	}
-	return 0;
 }
 
 static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti)
@@ -133,6 +132,17 @@ pid_t getppid_of(pid_t pid)
 	return (pid_t)(-1);
 }
 
+int is_child_of(pid_t child_pid, pid_t parent_pid)
+{
+	if (child_pid <= 0 || parent_pid <= 0 || child_pid == parent_pid)
+		return 0;
+	while (child_pid > 1 && child_pid != parent_pid)
+	{
+		child_pid = getppid_of(child_pid);
+	}
+	return child_pid == parent_pid;
+}
+
 int get_next_process(struct process_iterator *it, struct process *p)
 {
 	if (it->i == it->count)
@@ -146,7 +156,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			return -1;
 		}
 		it->i = it->count = 1;
-		return pti2proc(&ti, p);
+		pti2proc(&ti, p);
+		return 0;
 	}
 	while (it->i < it->count)
 	{
@@ -163,8 +174,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		}
 		if (it->filter->pid != 0 && it->filter->include_children)
 		{
-			pti2proc(&ti, p);
 			it->i++;
+			pti2proc(&ti, p);
 			if (p->pid != it->pidlist[it->i - 1]) /* I don't know why this can happen */
 				continue;
 			if (p->pid != it->filter->pid && !is_child_of(p->pid, it->filter->pid))
@@ -173,8 +184,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 		}
 		else if (it->filter->pid == 0)
 		{
-			pti2proc(&ti, p);
 			it->i++;
+			pti2proc(&ti, p);
 			return 0;
 		}
 	}

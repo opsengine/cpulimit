@@ -27,17 +27,6 @@
 
 /* See this link to port to other systems: http://www.steve.org.uk/Reference/Unix/faq_8.html#SEC85 */
 
-int is_child_of(pid_t child_pid, pid_t parent_pid)
-{
-	if (child_pid <= 0 || parent_pid <= 0)
-		return 0;
-	while (child_pid > 1 && child_pid != parent_pid)
-	{
-		child_pid = getppid_of(child_pid);
-	}
-	return child_pid == parent_pid;
-}
-
 #if defined(__linux__)
 
 #include "process_iterator_linux.c"

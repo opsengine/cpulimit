@@ -54,44 +54,57 @@ static int read_process_info(pid_t pid, struct process *p)
 	char statfile[32], exefile[32], state;
 	long utime, stime, ppid;
 	FILE *fd;
+	int ret = 0;
 
 	p->pid = pid;
 
 	/* read command line */
 	sprintf(exefile, "/proc/%ld/cmdline", (long)p->pid);
-	fd = fopen(exefile, "r");
-	if (fd == NULL)
-		goto error_out1;
-	p->max_cmd_len = sizeof(p->command) - 1;
-	if (fgets(p->command, sizeof(p->command), fd) == NULL)
+	if ((fd = fopen(exefile, "r")) != NULL)
 	{
+		if (fgets(p->command, sizeof(p->command), fd) == NULL)
+		{
+			ret = -1;
+		}
+		else
+		{
+			p->max_cmd_len = sizeof(p->command) - 1;
+		}
 		fclose(fd);
-		goto error_out1;
 	}
-	fclose(fd);
+	else
+	{
+		ret = -1;
+	}
+
+	if (ret != 0)
+	{
+		return ret;
+	}
 
 	/* read stat file */
 	sprintf(statfile, "/proc/%ld/stat", (long)p->pid);
-	fd = fopen(statfile, "r");
-	if (fd == NULL)
-		goto error_out2;
-
-	if (fscanf(fd, "%*d (%*[^)]) %c %ld %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
-			   &state, &ppid, &utime, &stime) != 4 ||
-		state == 'Z' || state == 'X')
+	if ((fd = fopen(statfile, "r")) != NULL)
 	{
+		if (fscanf(fd, "%*d (%*[^)]) %c %ld %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
+				   &state, &ppid, &utime, &stime) != 4 ||
+			state == 'Z' || state == 'X')
+		{
+			ret = -1;
+		}
+		else
+		{
+			p->ppid = (pid_t)ppid;
+			p->cputime = utime * 1000.0 / HZ + stime * 1000.0 / HZ;
+		}
 		fclose(fd);
-		goto error_out2;
 	}
-	fclose(fd);
-	p->ppid = (pid_t)ppid;
-	p->cputime = utime * 1000.0 / HZ + stime * 1000.0 / HZ;
-	return 0;
+	else
+	{
+		ret = -1;
+	}
 
-error_out1:
-	p->command[0] = '\0';
-error_out2:
-	return -1;
+	return ret;
 }
 
 pid_t getppid_of(pid_t pid)
@@ -109,6 +122,17 @@ pid_t getppid_of(pid_t pid)
 		fclose(fd);
 	}
 	return (pid_t)ppid;
+}
+
+int is_child_of(pid_t child_pid, pid_t parent_pid)
+{
+	if (child_pid <= 0 || parent_pid <= 0 || child_pid == parent_pid)
+		return 0;
+	while (child_pid > 1 && child_pid != parent_pid)
+	{
+		child_pid = getppid_of(child_pid);
+	}
+	return child_pid == parent_pid;
 }
 
 int get_next_process(struct process_iterator *it, struct process *p)
@@ -140,7 +164,8 @@ int get_next_process(struct process_iterator *it, struct process *p)
 			it->filter->pid != p->pid &&
 			!is_child_of(p->pid, it->filter->pid))
 			continue;
-		read_process_info(p->pid, p);
+		if (read_process_info(p->pid, p) != 0)
+			continue;
 		return 0;
 	}
 	/* end of processes */
