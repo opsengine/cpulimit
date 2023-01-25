@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#ifdef __FreeBSD__
+
+#ifndef __PROCESS_ITERATOR_FREEBSD_C
+#define __PROCESS_ITERATOR_FREEBSD_C
+
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <fcntl.h>
@@ -176,3 +181,6 @@ int close_process_iterator(struct process_iterator *it)
 	}
 	return 0;
 }
+
+#endif
+#endif

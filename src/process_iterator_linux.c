@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#ifdef __linux__
+
+#ifndef __PROCESS_ITERATOR_LINUX_C
+#define __PROCESS_ITERATOR_LINUX_C
+
 #include <sys/vfs.h>
 #include <linux/magic.h>
 
@@ -184,3 +189,6 @@ int close_process_iterator(struct process_iterator *it)
 	it->dip = NULL;
 	return 0;
 }
+
+#endif
+#endif

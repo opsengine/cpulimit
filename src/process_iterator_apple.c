@@ -22,6 +22,11 @@
  *
  */
 
+#ifdef __APPLE__
+
+#ifndef __PROCESS_ITERATOR_APPLE_C
+#define __PROCESS_ITERATOR_APPLE_C
+
 #include <errno.h>
 #include <stdio.h>
 #include <libproc.h>
@@ -201,3 +206,6 @@ int close_process_iterator(struct process_iterator *it)
 	it->i = 0;
 	return 0;
 }
+
+#endif
+#endif
