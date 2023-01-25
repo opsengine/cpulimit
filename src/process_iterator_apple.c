@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <libproc.h>
 #include <string.h>
+#include <stdlib.h>
 
 static int unique_nonzero_pids(pid_t *arr_in, int len_in, pid_t *arr_out)
 {
@@ -42,6 +43,10 @@ static int unique_nonzero_pids(pid_t *arr_in, int len_in, pid_t *arr_out)
 	if (arr_in == arr_out)
 	{
 		source = malloc(sizeof(pid_t) * len_in);
+		if (source == NULL)
+		{
+			exit(-1);
+		}
 		memcpy(source, arr_in, sizeof(pid_t) * len_in);
 		memset(arr_out, -1, sizeof(pid_t) * len_in);
 	}
@@ -79,6 +84,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 	if ((it->pidlist = malloc((it->count) * sizeof(pid_t))) == NULL)
 	{
 		fprintf(stderr, "malloc: %s\n", strerror(errno));
+		exit(-1);
 	}
 	if ((it->count = proc_listpids(PROC_ALL_PIDS, 0, it->pidlist, it->count)) <= 0)
 	{

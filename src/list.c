@@ -36,6 +36,10 @@ void init_list(struct list *l, int keysize)
 struct list_node *add_elem(struct list *l, void *elem)
 {
 	struct list_node *newnode = malloc(sizeof(struct list_node));
+	if (newnode == NULL)
+	{
+		exit(-1);
+	}
 	newnode->data = elem;
 	newnode->previous = l->last;
 	newnode->next = NULL;
