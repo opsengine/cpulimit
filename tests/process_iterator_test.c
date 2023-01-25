@@ -30,8 +30,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include "process_iterator.h"
-#include "process_group.h"
+#include "../src/process_iterator.h"
+#include "../src/process_group.h"
 
 #define MAX_PRIORITY -20
 
@@ -56,15 +56,12 @@ static void increase_priority(void)
 	(nanosleep((t), NULL))
 #endif
 
-volatile sig_atomic_t child;
-
 #ifdef __GNUC__
-static void kill_child(__attribute__((__unused__)) int sig)
+static void ignore_signal(__attribute__((__unused__)) int sig)
 #else
-static void kill_child(int sig)
+static void ignore_signal(int sig)
 #endif
 {
-	kill(child, SIGINT);
 }
 
 static void test_single_process(void)
@@ -133,7 +130,7 @@ static void test_multiple_process(void)
 	}
 	assert(count == 2);
 	close_process_iterator(&it);
-	kill(child, SIGINT);
+	kill(child, SIGKILL);
 }
 
 static void test_all_processes(void)
@@ -180,7 +177,7 @@ static void test_process_group_single(int include_children)
 	struct process_group pgroup;
 	int i;
 	double tot_usage = 0;
-	child = fork();
+	pid_t child = fork();
 	if (child == 0)
 	{
 		/* child is supposed to be killed by the parent :/ */
@@ -189,8 +186,6 @@ static void test_process_group_single(int include_children)
 			;
 		exit(1);
 	}
-	signal(SIGABRT, &kill_child);
-	signal(SIGTERM, &kill_child);
 	assert(init_process_group(&pgroup, child, include_children) == 0);
 	for (i = 0; i < 200; i++)
 	{
@@ -214,7 +209,7 @@ static void test_process_group_single(int include_children)
 	}
 	assert(tot_usage / i < 1.1 && tot_usage / i > 0.7);
 	assert(close_process_group(&pgroup) == 0);
-	kill(child, SIGINT);
+	kill(child, SIGKILL);
 }
 
 char *command = NULL;
@@ -272,6 +267,14 @@ int main(__attribute__((__unused__)) int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+	/* ignore SIGINT and SIGTERM during tests*/
+	struct sigaction sa;
+	sa.sa_handler = ignore_signal;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
 	command = argv[0];
 	increase_priority();
 	test_single_process();
