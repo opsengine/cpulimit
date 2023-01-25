@@ -261,6 +261,22 @@ static void test_find_process_by_name(void)
 	assert(find_process_by_name("") == 0);
 }
 
+static void test_getppid_of(void)
+{
+	struct process_iterator it;
+	struct process process;
+	struct process_filter filter;
+	filter.pid = 0;
+	filter.include_children = 0;
+	init_process_iterator(&it, &filter);
+	while (get_next_process(&it, &process) == 0)
+	{
+		assert(getppid_of(process.pid) == process.ppid);
+	}
+	close_process_iterator(&it);
+	assert(getppid_of(getpid()) == getppid());
+}
+
 #ifdef __GNUC__
 int main(__attribute__((__unused__)) int argc, char *argv[])
 #else
@@ -287,5 +303,6 @@ int main(int argc, char *argv[])
 	test_process_name();
 	test_find_process_by_pid();
 	test_find_process_by_name();
+	test_getppid_of();
 	return 0;
 }
