@@ -26,6 +26,7 @@
 
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#include <string.h>
 
 static int check_proc(void)
 {
@@ -57,7 +58,8 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 static int read_process_info(pid_t pid, struct process *p)
 {
 	char statfile[32], exefile[32], state;
-	long utime, stime, ppid;
+	unsigned long utime, stime;
+	long ppid;
 	FILE *fd;
 	int ret = 0;
 
@@ -91,9 +93,9 @@ static int read_process_info(pid_t pid, struct process *p)
 	sprintf(statfile, "/proc/%ld/stat", (long)p->pid);
 	if ((fd = fopen(statfile, "r")) != NULL)
 	{
-		if (fscanf(fd, "%*d (%*[^)]) %c %ld %*d %*d %*d %*d %*d %*d %*d %*d %*d %ld %ld",
+		if (fscanf(fd, "%*d (%*[^)]) %c %ld %*d %*d %*d %*d %*d %*d %*d %*d %*d %lu %lu",
 				   &state, &ppid, &utime, &stime) != 4 ||
-			state == 'Z' || state == 'X')
+			strchr("ZXx", state) != NULL)
 		{
 			ret = -1;
 		}
