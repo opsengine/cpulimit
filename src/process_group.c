@@ -31,7 +31,7 @@
 #include "process_group.h"
 #include "list.h"
 
-#if _POSIX_C_SOURCE >= 199309L
+#ifdef CLOCK_MONOTONIC
 #define get_time(ts) \
 	(clock_gettime(CLOCK_MONOTONIC, (ts)))
 #else
