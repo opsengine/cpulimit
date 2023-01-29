@@ -48,7 +48,7 @@ static void increase_priority(void)
 }
 
 /* inline int sleep_timespec(struct timespec *t); */
-#if _POSIX_C_SOURCE >= 200809L
+#if _POSIX_C_SOURCE >= 200809L && defined(CLOCK_MONOTONIC)
 #define sleep_timespec(t) \
 	(clock_nanosleep(CLOCK_MONOTONIC, 0, (t), NULL))
 #else
