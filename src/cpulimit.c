@@ -324,12 +324,14 @@ static void limit_process(pid_t pid, double limit, int include_children)
 	}
 
 	close_process_group(&pgroup);
+}
 
+static void quit_handler(void)
+{
 	if (quit_flag)
 	{
 		/* fix ^C little problem */
 		printf("\r");
-		exit(0);
 	}
 }
 
@@ -368,6 +370,9 @@ int main(int argc, char *argv[])
 	struct sigaction sa;
 
 	static char program_base_name[PATH_MAX + 1];
+
+	atexit(quit_handler);
+
 	/* get program name */
 	strncpy(program_base_name, basename(argv[0]), sizeof(program_base_name) - 1);
 	program_base_name[sizeof(program_base_name) - 1] = '\0';
@@ -539,11 +544,12 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Limiting process %ld\n", (long)child);
 				limit_process(child, limit, include_children);
+				exit(0);
 			}
 		}
 	}
 
-	while (1)
+	while (!quit_flag)
 	{
 		/* look for the target process..or wait for it */
 		pid_t ret = 0;
@@ -589,11 +595,11 @@ int main(int argc, char *argv[])
 			/* control */
 			limit_process(pid, limit, include_children);
 		}
-		if (lazy)
+		if (lazy || quit_flag)
 			break;
 		/* wait for 2 seconds before next search */
 		sleep_timespec(&wait_time);
-	};
+	}
 
 	return 0;
 }
