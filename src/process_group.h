@@ -33,10 +33,6 @@
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
 
-#undef basename
-#define basename(x) \
-	((strrchr((x), '/') != NULL) ? (strrchr((x), '/') + 1) : (x))
-
 struct process_group
 {
 	/* hashtable with all the processes (array of struct list of struct process) */

@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <libgen.h>
 
 #include "../src/process_iterator.h"
 #include "../src/process_group.h"
@@ -219,8 +220,8 @@ static void test_process_name(void)
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
-	const char *command_basename;
-	const char *process_basename;
+	static char command_basename[PATH_MAX + 1];
+	static char process_basename[PATH_MAX + 1];
 	int cmp_len;
 	filter.pid = getpid();
 	filter.include_children = 0;
@@ -228,9 +229,11 @@ static void test_process_name(void)
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
-	command_basename = basename(command);
-	process_basename = basename(process.command);
-	cmp_len = process.max_cmd_len - (process_basename - process.command);
+	strncpy(command_basename, basename(command), sizeof(command_basename) - 1);
+	command_basename[sizeof(command_basename) - 1] = '\0';
+	strncpy(process_basename, basename(process.command), sizeof(process_basename) - 1);
+	process_basename[sizeof(process_basename) - 1] = '\0';
+	cmp_len = process.max_cmd_len - (strlen(process.command) - strlen(process_basename));
 	assert(strncmp(command_basename, process_basename, cmp_len) == 0);
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);

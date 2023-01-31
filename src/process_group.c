@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "process_iterator.h"
 #include "process_group.h"
@@ -72,14 +73,22 @@ pid_t find_process_by_name(char *process_name)
 	struct process_iterator it;
 	struct process proc;
 	struct process_filter filter;
-	const char *process_basename = basename(process_name);
+	static char process_basename[PATH_MAX + 1];
+	static char command_basename[PATH_MAX + 1];
+	strncpy(process_basename, basename(process_name),
+			sizeof(process_basename) - 1);
+	process_basename[sizeof(process_basename) - 1] = '\0';
 	filter.pid = 0;
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &proc) != -1)
 	{
-		const char *command_basename = basename(proc.command);
-		int cmp_len = proc.max_cmd_len - (command_basename - proc.command);
+		int cmp_len;
+		strncpy(command_basename, basename(proc.command),
+				sizeof(command_basename) - 1);
+		command_basename[sizeof(command_basename) - 1] = '\0';
+		cmp_len = proc.max_cmd_len -
+				  (strlen(proc.command) - strlen(command_basename));
 		/* process found */
 		if (cmp_len > 0 && command_basename[0] != '\0' &&
 			strncmp(command_basename, process_basename, cmp_len) == 0)

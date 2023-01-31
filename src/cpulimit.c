@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
+#include <libgen.h>
 
 #include "process_group.h"
 #include "list.h"
@@ -366,8 +367,11 @@ int main(int argc, char *argv[])
 
 	struct sigaction sa;
 
+	static char program_base_name[PATH_MAX + 1];
 	/* get program name */
-	program_name = basename(argv[0]);
+	strncpy(program_base_name, basename(argv[0]), sizeof(program_base_name) - 1);
+	program_base_name[sizeof(program_base_name) - 1] = '\0';
+	program_name = program_base_name;
 	/* get current pid */
 	cpulimit_pid = getpid();
 	/* get cpu count */
