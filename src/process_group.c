@@ -32,10 +32,16 @@
 #include "process_group.h"
 #include "list.h"
 
-#ifdef CLOCK_MONOTONIC
+#if defined(__linux__)
+#if defined(CLOCK_TAI)
+#define get_time(ts) \
+	(clock_gettime(CLOCK_TAI, (ts)))
+#elif defined(CLOCK_MONOTONIC)
 #define get_time(ts) \
 	(clock_gettime(CLOCK_MONOTONIC, (ts)))
-#else
+#endif
+#endif
+#ifndef get_time
 static int get_time(struct timespec *ts)
 {
 	struct timeval tv;
@@ -44,7 +50,7 @@ static int get_time(struct timespec *ts)
 		return -1;
 	}
 	ts->tv_sec = tv.tv_sec;
-	ts->tv_nsec = tv.tv_usec * 1000;
+	ts->tv_nsec = tv.tv_usec * 1000L;
 	return 0;
 }
 #endif
