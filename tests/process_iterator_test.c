@@ -34,6 +34,10 @@
 #include "../src/process_iterator.h"
 #include "../src/process_group.h"
 
+#ifndef __GNUC__
+#define __attribute__(attr)
+#endif
+
 #define MAX_PRIORITY -20
 
 static void increase_priority(void)
@@ -57,11 +61,7 @@ static void increase_priority(void)
 	(nanosleep((t), NULL))
 #endif
 
-#ifdef __GNUC__
-static void ignore_signal(__attribute__((__unused__)) int sig)
-#else
-static void ignore_signal(int sig)
-#endif
+static void ignore_signal(int sig __attribute__((unused)))
 {
 }
 
@@ -280,11 +280,7 @@ static void test_getppid_of(void)
 	assert(getppid_of(getpid()) == getppid());
 }
 
-#ifdef __GNUC__
-int main(__attribute__((__unused__)) int argc, char *argv[])
-#else
-int main(int argc, char *argv[])
-#endif
+int main(int argc __attribute__((unused)), char *argv[])
 {
 	/* ignore SIGINT and SIGTERM during tests*/
 	struct sigaction sa;

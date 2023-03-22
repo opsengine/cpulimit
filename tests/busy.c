@@ -5,6 +5,10 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#ifndef __GNUC__
+#define __attribute__(attr)
+#endif
+
 #define MAX_PRIORITY -20
 
 static void increase_priority(void)
@@ -37,11 +41,7 @@ static int get_ncpu(void)
 	return ncpu;
 }
 
-#ifdef __GNUC__
-static void *loop(__attribute__((__unused__)) void *param)
-#else
-static void *loop(void *param)
-#endif
+static void *loop(void *param __attribute__((unused)))
 {
 	while (1)
 		;

@@ -41,6 +41,10 @@
 #include "process_group.h"
 #include "list.h"
 
+#ifndef __GNUC__
+#define __attribute__(attr)
+#endif
+
 /* some useful macro */
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -98,11 +102,7 @@ int lazy = 0;
 
 /* SIGINT and SIGTERM signal handler */
 volatile sig_atomic_t quit_flag = 0;
-#ifdef __GNUC__
-static void quit(__attribute__((__unused__)) int sig)
-#else
-static void quit(int sig)
-#endif
+static void quit(int sig __attribute__((unused)))
 {
 	quit_flag = 1;
 }
