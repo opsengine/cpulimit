@@ -100,8 +100,10 @@ int verbose = 0;
 /* lazy mode (exits if there is no process) */
 int lazy = 0;
 
-/* SIGINT and SIGTERM signal handler */
+/* quit flag for SIGINT and SIGTERM signals */
 volatile sig_atomic_t quit_flag = 0;
+
+/* SIGINT and SIGTERM signal handler */
 static void quit(int sig __attribute__((unused)))
 {
 	quit_flag = 1;
