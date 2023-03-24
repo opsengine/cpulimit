@@ -85,6 +85,9 @@ char *program_name;
 //number of cpu
 int NCPU;
 
+//the CPU limit - global because signal handlers need to be able to twiddle it
+double limit;
+
 /* CONFIGURATION VARIABLES */
 
 //verbose mode
@@ -111,6 +114,22 @@ static void quit(int sig)
 	exit(0);
 }
 
+//SIGUSR1 handler
+static void use_more(int sig)
+{
+	if(limit + 0.01 <= NCPU) {
+		limit += 0.01;
+	}
+}
+
+//SIGUSR2 handler
+static void use_less(int sig)
+{
+	if(limit - 0.01 >= 0) {
+		limit -= 0.01;
+	}
+}
+
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
 static inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
 {
@@ -122,6 +141,8 @@ static void print_usage(FILE *stream, int exit_code)
 	fprintf(stream, "Usage: %s [OPTIONS...] TARGET\n", program_name);
 	fprintf(stream, "   OPTIONS\n");
 	fprintf(stream, "      -l, --limit=N          percentage of cpu allowed from 0 to %d (required)\n", 100*NCPU);
+	fprintf(stream, "                               can be increased by 1 by sending SIGUSR1\n");
+	fprintf(stream, "                               or decreased by 1 by sending SIGUSR2\n");
 	fprintf(stream, "      -v, --verbose          show control statistics\n");
 	fprintf(stream, "      -z, --lazy             exit if there is no target process, or if it dies\n");
 	fprintf(stream, "      -i, --include-children limit also the children processes\n");
@@ -186,7 +207,7 @@ int get_pid_max()
 #endif
 }
 
-void limit_process(pid_t pid, double limit, int include_children)
+void limit_process(pid_t pid, double *limit_pointer, int include_children)
 {
 	//slice of the slot in which the process is allowed to run
 	struct timespec twork;
@@ -220,6 +241,9 @@ void limit_process(pid_t pid, double limit, int include_children)
 	//1 means that the process are using all the twork slice
 	double workingrate = -1;
 	while(1) {
+		//refresh this every time round the loop in case it got bumped up or down
+		double limit = *limit_pointer;
+
 		update_process_group(&pgroup);
 
 		if (pgroup.proclist->count==0) {
@@ -400,7 +424,7 @@ int main(int argc, char **argv) {
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	double limit = perclimit / 100.0;
+	limit = perclimit / 100.0;
 	if (limit<0 || limit >NCPU) {
 		fprintf(stderr,"Error: limit must be in the range 0-%d00\n", NCPU);
 		print_usage(stderr, 1);
@@ -423,6 +447,8 @@ int main(int argc, char **argv) {
 	//all arguments are ok!
 	signal(SIGINT, quit);
 	signal(SIGTERM, quit);
+	signal(SIGUSR1, use_more);
+	signal(SIGUSR2, use_less);
 
 	//print the number of available cpu
 	if (verbose) printf("%d cpu detected\n", NCPU);
@@ -481,7 +507,7 @@ int main(int argc, char **argv) {
 			else {
 				//limiter code
 				if (verbose) printf("Limiting process %d\n",child);
-				limit_process(child, limit, include_children);
+				limit_process(child, &limit, include_children);
 				exit(0);
 			}
 		}
@@ -520,7 +546,7 @@ int main(int argc, char **argv) {
 			}
 			printf("Process %d found\n", pid);
 			//control
-			limit_process(pid, limit, include_children);
+			limit_process(pid, &limit, include_children);
 		}
 		if (lazy) break;
 		sleep(2);
