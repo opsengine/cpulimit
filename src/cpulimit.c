@@ -108,7 +108,7 @@ static void quit(int sig)
 	//fix ^C little problem
 	printf("\r");
 	fflush(stdout);
-	exit(0);
+	exit(124);
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
