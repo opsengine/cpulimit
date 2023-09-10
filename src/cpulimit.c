@@ -37,13 +37,10 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <libgen.h>
+#include "c89atomic.h"
 
 #include "process_group.h"
 #include "list.h"
-
-#ifndef __GNUC__
-#define __attribute__(attr)
-#endif
 
 /* some useful macro */
 #ifndef MIN
@@ -101,12 +98,37 @@ int verbose = 0;
 int lazy = 0;
 
 /* quit flag for SIGINT and SIGTERM signals */
-volatile sig_atomic_t quit_flag = 0;
+volatile c89atomic_uint8 quit_flag;
+
+/* percentage limitation value [0 - NCPU*100] */
+volatile int perclimit;
+
+volatile c89atomic_spinlock perclimit_lock;
 
 /* SIGINT and SIGTERM signal handler */
-static void quit(int sig __attribute__((unused)))
+static void sig_handler(int sig)
 {
-	quit_flag = 1;
+	switch (sig)
+	{
+	case SIGINT:
+	case SIGTERM:
+		c89atomic_store_8(&quit_flag, 1);
+		break;
+	case SIGUSR1:
+		c89atomic_spinlock_lock(&perclimit_lock);
+		perclimit++;
+		perclimit = MIN(perclimit, NCPU * 100);
+		c89atomic_spinlock_unlock(&perclimit_lock);
+		break;
+	case SIGUSR2:
+		c89atomic_spinlock_lock(&perclimit_lock);
+		perclimit--;
+		perclimit = MAX(perclimit, 0);
+		c89atomic_spinlock_unlock(&perclimit_lock);
+		break;
+	default:
+		break;
+	}
 }
 
 static void print_usage(FILE *stream, int exit_code)
@@ -187,7 +209,7 @@ static pid_t get_pid_max(void)
 #endif
 }
 
-static void limit_process(pid_t pid, double limit, int include_children)
+static void limit_process(pid_t pid, int include_children)
 {
 	/* slice of the slot in which the process is allowed to run */
 	struct timespec twork;
@@ -212,13 +234,19 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		printf("Members in the process group owned by %ld: %d\n",
 			   (long)pgroup.target_pid, pgroup.proclist->count);
 
-	while (!quit_flag)
+	while (!c89atomic_load_8(&quit_flag))
 	{
 		/* total cpu actual usage (range 0-1) */
 		/* 1 means that the processes are using 100% cpu */
 		double pcpu = -1;
 
 		double twork_total_nsec, tsleep_total_nsec;
+
+		double limit;
+
+		c89atomic_spinlock_lock(&perclimit_lock);
+		limit = perclimit / 100.0;
+		c89atomic_spinlock_unlock(&perclimit_lock);
 
 		update_process_group(&pgroup);
 
@@ -265,7 +293,11 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		if (verbose)
 		{
 			if (c % 200 == 0)
-				printf("\n    %%CPU    work quantum    sleep quantum    active rate\n");
+			{
+				printf("\nCPU usage limitation: %.0f%%\n", limit * 100);
+				printf("    %%CPU    work quantum    sleep quantum    active rate\n");
+			}
+
 			if (c % 10 == 0 && c > 0)
 				printf("%7.2f%%    %9.0f us    %10.0f us    %10.2f%%\n", pcpu * 100, twork_total_nsec / 1000, tsleep_total_nsec / 1000, workingrate * 100);
 		}
@@ -316,7 +348,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 		c = (c + 1) % 200;
 	}
 
-	if (quit_flag)
+	if (c89atomic_load_8(&quit_flag))
 	{
 		for (node = pgroup.proclist->first; node != NULL; node = node->next)
 		{
@@ -330,7 +362,7 @@ static void limit_process(pid_t pid, double limit, int include_children)
 
 static void quit_handler(void)
 {
-	if (quit_flag)
+	if (c89atomic_load_8(&quit_flag))
 	{
 		/* fix ^C little problem */
 		printf("\r");
@@ -341,7 +373,6 @@ int main(int argc, char *argv[])
 {
 	/* argument variables */
 	char *exe = NULL;
-	int perclimit = 0;
 	int exe_ok = 0;
 	int pid_ok = 0;
 	int limit_ok = 0;
@@ -365,13 +396,13 @@ int main(int argc, char *argv[])
 		{"help", no_argument, NULL, 'h'},
 		{0, 0, 0, 0}};
 
-	double limit;
-
 	struct timespec wait_time = {2, 0};
 
 	struct sigaction sa;
 
 	static char program_base_name[PATH_MAX + 1];
+
+	c89atomic_store_8(&quit_flag, 0);
 
 	atexit(quit_handler);
 
@@ -398,7 +429,9 @@ int main(int argc, char *argv[])
 			exe_ok = 1;
 			break;
 		case 'l':
+			c89atomic_spinlock_lock(&perclimit_lock);
 			perclimit = atoi(optarg);
+			c89atomic_spinlock_unlock(&perclimit_lock);
 			limit_ok = 1;
 			break;
 		case 'v':
@@ -440,13 +473,16 @@ int main(int argc, char *argv[])
 		print_usage(stderr, 1);
 		exit(1);
 	}
-	limit = perclimit / 100.0;
-	if (limit < 0 || limit > NCPU)
+
+	c89atomic_spinlock_lock(&perclimit_lock);
+	if (perclimit < 0 || perclimit > NCPU * 100)
 	{
+		c89atomic_spinlock_unlock(&perclimit_lock);
 		fprintf(stderr, "Error: limit must be in the range 0-%d00\n", NCPU);
 		print_usage(stderr, 1);
 		exit(1);
 	}
+	c89atomic_spinlock_unlock(&perclimit_lock);
 
 	command_mode = optind < argc;
 	if (exe_ok + pid_ok + command_mode == 0)
@@ -464,11 +500,13 @@ int main(int argc, char *argv[])
 	}
 
 	/* all arguments are ok! */
-	sa.sa_handler = quit;
+	sa.sa_handler = sig_handler;
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGUSR1, &sa, NULL);
+	sigaction(SIGUSR2, &sa, NULL);
 
 	/* print the number of available cpu */
 	if (verbose)
@@ -545,13 +583,13 @@ int main(int argc, char *argv[])
 				/* limiter code */
 				if (verbose)
 					printf("Limiting process %ld\n", (long)child);
-				limit_process(child, limit, include_children);
+				limit_process(child, include_children);
 				exit(0);
 			}
 		}
 	}
 
-	while (!quit_flag)
+	while (!c89atomic_load_8(&quit_flag))
 	{
 		/* look for the target process..or wait for it */
 		pid_t ret = 0;
@@ -595,9 +633,9 @@ int main(int argc, char *argv[])
 			}
 			printf("Process %ld found\n", (long)pid);
 			/* control */
-			limit_process(pid, limit, include_children);
+			limit_process(pid, include_children);
 		}
-		if (lazy || quit_flag)
+		if (lazy || c89atomic_load_8(&quit_flag))
 			break;
 		/* wait for 2 seconds before next search */
 		sleep_timespec(&wait_time);
