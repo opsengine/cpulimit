@@ -26,7 +26,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <libgen.h>
 
 #include "process_iterator.h"
 #include "process_group.h"
@@ -54,6 +53,9 @@ static int get_time(struct timespec *ts)
 	return 0;
 }
 #endif
+
+#define basename(path) \
+	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
 
 /* look for a process by pid
 search_pid   : pid of the wanted process

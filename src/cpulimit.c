@@ -36,7 +36,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
-#include <libgen.h>
 #include "c89atomic.h"
 
 #include "process_group.h"
@@ -49,6 +48,9 @@
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
+
+#define basename(path) \
+	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
 
 /* inline void nsec2timespec(double nsec, struct timespec *t); */
 #define nsec2timespec(nsec, t)                             \

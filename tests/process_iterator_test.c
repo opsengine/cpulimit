@@ -29,7 +29,6 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <libgen.h>
 
 #include "../src/process_iterator.h"
 #include "../src/process_group.h"
@@ -60,6 +59,9 @@ static void increase_priority(void)
 #define sleep_timespec(t) \
 	(nanosleep((t), NULL))
 #endif
+
+#define basename(path) \
+	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
 
 static void ignore_signal(int sig __attribute__((unused)))
 {
