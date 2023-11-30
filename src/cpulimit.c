@@ -242,10 +242,15 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 
 		//adjust work and sleep time slices
+		if (workingrate < 0) {
+			workingrate = limit;
+		}
 		if (pcpu < 0) {
 			//it's the 1st cycle, initialize workingrate
 			pcpu = limit;
-			workingrate = limit;
+			twork.tv_nsec = TIME_SLOT * limit * 1000;
+		}
+		if (pcpu == 0) {
 			twork.tv_nsec = TIME_SLOT * limit * 1000;
 		}
 		else {
