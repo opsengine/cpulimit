@@ -41,7 +41,7 @@
 #endif
 #endif
 #ifndef get_time
-static int get_time(struct timespec *ts)
+static int __get_time(struct timespec *ts)
 {
 	struct timeval tv;
 	if (gettimeofday(&tv, NULL))
@@ -52,10 +52,17 @@ static int get_time(struct timespec *ts)
 	ts->tv_nsec = tv.tv_usec * 1000L;
 	return 0;
 }
+#define get_time(ts) \
+	__get_time(ts)
 #endif
 
+static const char *__basename(const char *path)
+{
+	const char *p = strrchr(path, '/');
+	return p != NULL ? p + 1 : path;
+}
 #define basename(path) \
-	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
+	__basename(path)
 
 /* look for a process by pid
 search_pid   : pid of the wanted process

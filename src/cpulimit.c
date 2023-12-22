@@ -49,8 +49,13 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+static const char *__basename(const char *path)
+{
+	const char *p = strrchr(path, '/');
+	return p != NULL ? p + 1 : path;
+}
 #define basename(path) \
-	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
+	__basename(path)
 
 /* inline void nsec2timespec(double nsec, struct timespec *t); */
 #define nsec2timespec(nsec, t)                             \

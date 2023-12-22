@@ -60,8 +60,13 @@ static void increase_priority(void)
 	(nanosleep((t), NULL))
 #endif
 
+static const char *__basename(const char *path)
+{
+	const char *p = strrchr(path, '/');
+	return p != NULL ? p + 1 : path;
+}
 #define basename(path) \
-	(strrchr((path), '/') != NULL ? strrchr((path), '/') + 1 : (path))
+	__basename(path)
 
 static void ignore_signal(int sig __attribute__((unused)))
 {
