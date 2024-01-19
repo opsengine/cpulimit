@@ -33,11 +33,9 @@
 
 #if defined(__linux__)
 #if defined(CLOCK_TAI)
-#define get_time(ts) \
-	(clock_gettime(CLOCK_TAI, (ts)))
+#define get_time(ts) clock_gettime(CLOCK_TAI, (ts))
 #elif defined(CLOCK_MONOTONIC)
-#define get_time(ts) \
-	(clock_gettime(CLOCK_MONOTONIC, (ts)))
+#define get_time(ts) clock_gettime(CLOCK_MONOTONIC, (ts))
 #endif
 #endif
 #ifndef get_time
@@ -52,17 +50,15 @@ static int __get_time(struct timespec *ts)
 	ts->tv_nsec = tv.tv_usec * 1000L;
 	return 0;
 }
-#define get_time(ts) \
-	__get_time(ts)
+#define get_time(ts) __get_time(ts)
 #endif
 
-static const char *__basename(const char *path)
+static char *__basename(char *path)
 {
-	const char *p = strrchr(path, '/');
+	char *p = strrchr(path, '/');
 	return p != NULL ? p + 1 : path;
 }
-#define basename(path) \
-	__basename(path)
+#define basename(path) __basename(path)
 
 /* look for a process by pid
 search_pid   : pid of the wanted process

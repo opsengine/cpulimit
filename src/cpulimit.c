@@ -49,13 +49,12 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-static const char *__basename(const char *path)
+static char *__basename(char *path)
 {
-	const char *p = strrchr(path, '/');
+	char *p = strrchr(path, '/');
 	return p != NULL ? p + 1 : path;
 }
-#define basename(path) \
-	__basename(path)
+#define basename(path) __basename(path)
 
 /* inline void nsec2timespec(double nsec, struct timespec *t); */
 #define nsec2timespec(nsec, t)                             \
@@ -67,11 +66,9 @@ static const char *__basename(const char *path)
 
 /* inline int sleep_timespec(struct timespec *t); */
 #if defined(__linux__) && defined(CLOCK_TAI)
-#define sleep_timespec(t) \
-	(clock_nanosleep(CLOCK_TAI, 0, (t), NULL))
+#define sleep_timespec(t) clock_nanosleep(CLOCK_TAI, 0, (t), NULL)
 #else
-#define sleep_timespec(t) \
-	(nanosleep((t), NULL))
+#define sleep_timespec(t) nanosleep((t), NULL)
 #endif
 
 #ifndef EPSILON
@@ -267,7 +264,7 @@ static void limit_process(pid_t pid, int include_children)
 		/* estimate how much the controlled processes are using the cpu in the working interval */
 		for (node = pgroup.proclist->first; node != NULL; node = node->next)
 		{
-			struct process *proc = (struct process *)(node->data);
+			const struct process *proc = (const struct process *)(node->data);
 			if (proc->cpu_usage < 0)
 			{
 				continue;

@@ -75,32 +75,32 @@ void destroy_node(struct list *l, struct list_node *node);
 /*
  * Check whether a list is empty or not
  */
-int is_empty_list(struct list *l);
+int is_empty_list(const struct list *l);
 
 /*
  * Return the element count of the list
  */
-int get_list_count(struct list *l);
+int get_list_count(const struct list *l);
 
 /*
  * Return the first element (content of the node) from the list
  */
-void *first_elem(struct list *l);
+void *first_elem(const struct list *l);
 
 /*
  * Return the first node from the list
  */
-struct list_node *first_node(struct list *l);
+struct list_node *first_node(const struct list *l);
 
 /*
  * Return the last element (content of the node) from the list
  */
-void *last_elem(struct list *l);
+void *last_elem(const struct list *l);
 
 /*
  * Return the last node from the list
  */
-struct list_node *last_node(struct list *l);
+struct list_node *last_node(const struct list *l);
 
 /*
  * Search an element of the list by content
@@ -110,22 +110,22 @@ struct list_node *last_node(struct list *l);
  * if the element is found, return the node address
  * else return NULL
  */
-struct list_node *xlocate_node(struct list *l, void *elem, int offset, int length);
+struct list_node *xlocate_node(const struct list *l, const void *elem, int offset, int length);
 
 /*
  * The same of xlocate_node(), but return the content of the node
  */
-void *xlocate_elem(struct list *l, void *elem, int offset, int length);
+void *xlocate_elem(const struct list *l, const void *elem, int offset, int length);
 
 /*
  * The same of calling xlocate_node() with offset=0 and length=0
  */
-struct list_node *locate_node(struct list *l, void *elem);
+struct list_node *locate_node(const struct list *l, const void *elem);
 
 /*
  * The same of locate_node, but return the content of the node
  */
-void *locate_elem(struct list *l, void *elem);
+void *locate_elem(const struct list *l, const void *elem);
 
 /*
  * Delete all the elements in the list

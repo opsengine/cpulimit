@@ -99,11 +99,11 @@ struct process_iterator
 	struct process_filter *filter;
 };
 
-int init_process_iterator(struct process_iterator *i, struct process_filter *filter);
+int init_process_iterator(struct process_iterator *it, struct process_filter *filter);
 
-int get_next_process(struct process_iterator *i, struct process *p);
+int get_next_process(struct process_iterator *it, struct process *p);
 
-int close_process_iterator(struct process_iterator *i);
+int close_process_iterator(struct process_iterator *it);
 
 int is_child_of(pid_t child_pid, pid_t parent_pid);
 

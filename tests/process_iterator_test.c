@@ -53,20 +53,17 @@ static void increase_priority(void)
 
 /* inline int sleep_timespec(struct timespec *t); */
 #if defined(__linux__) && defined(CLOCK_TAI)
-#define sleep_timespec(t) \
-	(clock_nanosleep(CLOCK_TAI, 0, (t), NULL))
+#define sleep_timespec(t) clock_nanosleep(CLOCK_TAI, 0, (t), NULL)
 #else
-#define sleep_timespec(t) \
-	(nanosleep((t), NULL))
+#define sleep_timespec(t) nanosleep((t), NULL)
 #endif
 
-static const char *__basename(const char *path)
+static char *__basename(char *path)
 {
-	const char *p = strrchr(path, '/');
+	char *p = strrchr(path, '/');
 	return p != NULL ? p + 1 : path;
 }
-#define basename(path) \
-	__basename(path)
+#define basename(path) __basename(path)
 
 static void ignore_signal(int sig __attribute__((unused)))
 {
@@ -203,7 +200,7 @@ static void test_process_group_single(int include_children)
 		update_process_group(&pgroup);
 		for (node = pgroup.proclist->first; node != NULL; node = node->next)
 		{
-			struct process *p = (struct process *)(node->data);
+			const struct process *p = (const struct process *)(node->data);
 			assert(p->pid == child);
 			assert(p->ppid == getpid());
 			assert(p->cpu_usage <= 1.2);

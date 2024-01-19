@@ -88,37 +88,37 @@ void destroy_node(struct list *l, struct list_node *node)
 	delete_node(l, node);
 }
 
-int is_empty_list(struct list *l)
+int is_empty_list(const struct list *l)
 {
 	return (l->count == 0 ? TRUE : FALSE);
 }
 
-int get_list_count(struct list *l)
+int get_list_count(const struct list *l)
 {
 	return l->count;
 }
 
-void *first_elem(struct list *l)
+void *first_elem(const struct list *l)
 {
 	return l->first->data;
 }
 
-struct list_node *first_node(struct list *l)
+struct list_node *first_node(const struct list *l)
 {
 	return l->first;
 }
 
-void *last_elem(struct list *l)
+void *last_elem(const struct list *l)
 {
 	return l->last->data;
 }
 
-struct list_node *last_node(struct list *l)
+struct list_node *last_node(const struct list *l)
 {
 	return l->last;
 }
 
-struct list_node *xlocate_node(struct list *l, void *elem, int offset, int length)
+struct list_node *xlocate_node(const struct list *l, const void *elem, int offset, int length)
 {
 	struct list_node *tmp;
 	tmp = l->first;
@@ -131,18 +131,18 @@ struct list_node *xlocate_node(struct list *l, void *elem, int offset, int lengt
 	return EMPTYLIST;
 }
 
-struct list_node *locate_node(struct list *l, void *elem)
+struct list_node *locate_node(const struct list *l, const void *elem)
 {
 	return (xlocate_node(l, elem, 0, 0));
 }
 
-void *xlocate_elem(struct list *l, void *elem, int offset, int length)
+void *xlocate_elem(const struct list *l, const void *elem, int offset, int length)
 {
 	struct list_node *node = xlocate_node(l, elem, offset, length);
 	return (node == NULL ? NULL : node->data);
 }
 
-void *locate_elem(struct list *l, void *elem)
+void *locate_elem(const struct list *l, const void *elem)
 {
 	return (xlocate_elem(l, elem, 0, 0));
 }
