@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,75 +23,90 @@
 
 #define __PROCESS_ITERATOR_H
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <limits.h>
+#if defined(__linux__)
+#include <linux/limits.h>
+#endif
 #include <dirent.h>
 
-//USER_HZ detection, from openssl code
+/* USER_HZ detection, from openssl code */
 #ifndef HZ
-# if defined(_SC_CLK_TCK) \
-     && (!defined(OPENSSL_SYS_VMS) || __CTRL_VER >= 70000000)
-#  define HZ ((double)sysconf(_SC_CLK_TCK))
-# else
-#  ifndef CLK_TCK
-#   ifndef _BSD_CLK_TCK_ /* FreeBSD hack */
-#    define HZ  100.0
-#   else /* _BSD_CLK_TCK_ */
-#    define HZ ((double)_BSD_CLK_TCK_)
-#   endif
-#  else /* CLK_TCK */
-#   define HZ ((double)CLK_TCK)
-#  endif
-# endif
+#if defined(_SC_CLK_TCK) && (!defined(OPENSSL_SYS_VMS) || __CTRL_VER >= 70000000)
+#define HZ ((double)sysconf(_SC_CLK_TCK))
+#else
+#ifndef CLK_TCK
+#ifndef _BSD_CLK_TCK_ /* FreeBSD hack */
+#define HZ 100.0
+#else /* _BSD_CLK_TCK_ */
+#define HZ ((double)_BSD_CLK_TCK_)
+#endif
+#else /* CLK_TCK */
+#define HZ ((double)CLK_TCK)
+#endif
+#endif
 #endif
 
 #ifdef __FreeBSD__
 #include <kvm.h>
 #endif
 
-// process descriptor
-struct process {
-	//pid of the process
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+/* process descriptor */
+struct process
+{
+	/* pid of the process */
 	pid_t pid;
-	//ppid of the process
+	/* ppid of the process */
 	pid_t ppid;
-	//start time (unix timestamp)
-	int starttime;
-	//cputime used by the process (in milliseconds)
-	int cputime;
-	//actual cpu usage estimation (value in range 0-1)
+	/* cputime used by the process (in milliseconds) */
+	double cputime;
+	/* actual cpu usage estimation (value in range 0-1) */
 	double cpu_usage;
-	//absolute path of the executable file
-	char command[PATH_MAX+1];
+	/* absolute path of the executable file */
+	char command[PATH_MAX + 1];
+	/* maximum command length */
+	int max_cmd_len;
 };
 
-struct process_filter {
-	int pid;
+struct process_filter
+{
+	pid_t pid;
 	int include_children;
-	char program_name[PATH_MAX+1];
 };
 
-struct process_iterator {
-#ifdef __linux__
+struct process_iterator
+{
+#if defined(__linux__)
 	DIR *dip;
-	int boot_time;
-#elif defined __FreeBSD__
+#elif defined(__FreeBSD__)
 	kvm_t *kd;
 	struct kinfo_proc *procs;
 	int count;
 	int i;
-#elif defined __APPLE__
+#elif defined(__APPLE__)
 	int i;
 	int count;
-	int *pidlist;
+	pid_t *pidlist;
 #endif
 	struct process_filter *filter;
 };
 
-int init_process_iterator(struct process_iterator *i, struct process_filter *filter);
+int init_process_iterator(struct process_iterator *it, struct process_filter *filter);
 
-int get_next_process(struct process_iterator *i, struct process *p);
+int get_next_process(struct process_iterator *it, struct process *p);
 
-int close_process_iterator(struct process_iterator *i);
+int close_process_iterator(struct process_iterator *it);
+
+int is_child_of(pid_t child_pid, pid_t parent_pid);
+
+pid_t getppid_of(pid_t pid);
 
 #endif

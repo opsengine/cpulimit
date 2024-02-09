@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,9 @@
 
 #define __PROCESS_GROUP_H
 
+#include <time.h>
+#include <string.h>
+
 #include "process_iterator.h"
 
 #include "list.h"
@@ -32,24 +35,24 @@
 
 struct process_group
 {
-	//hashtable with all the processes (array of struct list of struct process)
+	/* hashtable with all the processes (array of struct list of struct process) */
 	struct list *proctable[PIDHASH_SZ];
 	struct list *proclist;
 	pid_t target_pid;
 	int include_children;
-	struct timeval last_update;
+	struct timespec last_update;
 };
 
-int init_process_group(struct process_group *pgroup, int target_pid, int include_children);
+int init_process_group(struct process_group *pgroup, pid_t target_pid, int include_children);
 
 void update_process_group(struct process_group *pgroup);
 
 int close_process_group(struct process_group *pgroup);
 
-int find_process_by_pid(pid_t pid);
+pid_t find_process_by_pid(pid_t pid);
 
-int find_process_by_name(const char *process_name);
+pid_t find_process_by_name(char *process_name);
 
-int remove_process(struct process_group *pgroup, int pid);
+int remove_process(struct process_group *pgroup, pid_t pid);
 
 #endif

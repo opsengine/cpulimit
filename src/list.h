@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,82 +23,84 @@
 
 #define __LIST__
 
-#ifndef  TRUE
-    #define TRUE 1
-    #define FALSE 0
+#ifndef TRUE
+#define TRUE 1
+#define FALSE 0
 #endif
 
-struct list_node {
-    //pointer to the content of the node
+struct list_node
+{
+    /* pointer to the content of the node */
     void *data;
-    //pointer to previous node
+    /* pointer to previous node */
     struct list_node *previous;
-    //pointer to next node
+    /* pointer to next node */
     struct list_node *next;
 };
 
-struct list {
-    //first node
+struct list
+{
+    /* first node */
     struct list_node *first;
-    //last node
+    /* last node */
     struct list_node *last;
-    //size of the search key in bytes
+    /* size of the search key in bytes */
     int keysize;
-    //element count
+    /* element count */
     int count;
 };
 
 /*
  * Initialize a list, with a specified key size
  */
-void init_list(struct list *l,int keysize);
+void init_list(struct list *l, int keysize);
 
 /*
  * Add a new element at the end of the list
  * return the pointer to the new node
  */
-struct list_node *add_elem(struct list *l,void *elem);
+struct list_node *add_elem(struct list *l, void *elem);
 
 /*
  * Delete a node
  */
-void delete_node(struct list *l,struct list_node *node);
+void delete_node(struct list *l, struct list_node *node);
 
 /*
  * Delete a node from the list, even the content pointed by it
  * Use only when the content is a dynamically allocated pointer
  */
-void destroy_node(struct list *l,struct list_node *node);
+void destroy_node(struct list *l, struct list_node *node);
 
 /*
  * Check whether a list is empty or not
  */
-int is_empty_list(struct list *l);
+int is_empty_list(const struct list *l);
 
 /*
  * Return the element count of the list
  */
-int get_list_count(struct list *l);
+int get_list_count(const struct list *l);
 
 /*
  * Return the first element (content of the node) from the list
  */
-void *first_elem(struct list *l);
+void *first_elem(const struct list *l);
 
 /*
  * Return the first node from the list
  */
-struct list_node *first_node(struct list *l);
+struct list_node *first_node(const struct list *l);
 
 /*
  * Return the last element (content of the node) from the list
  */
-void *last_elem(struct list *l);
+void *last_elem(const struct list *l);
 
 /*
  * Return the last node from the list
  */
-struct list_node *last_node(struct list *l);
+struct list_node *last_node(const struct list *l);
 
 /*
  * Search an element of the list by content
@@ -108,22 +110,22 @@ struct list_node *last_node(struct list *l);
  * if the element is found, return the node address
  * else return NULL
  */
-struct list_node *xlocate_node(struct list *l,void *elem,int offset,int length);
+struct list_node *xlocate_node(const struct list *l, const void *elem, int offset, int length);
 
 /*
  * The same of xlocate_node(), but return the content of the node
  */
-void *xlocate_elem(struct list *l,void *elem,int offset,int length);
+void *xlocate_elem(const struct list *l, const void *elem, int offset, int length);
 
 /*
  * The same of calling xlocate_node() with offset=0 and length=0
  */
-struct list_node *locate_node(struct list *l,void *elem);
+struct list_node *locate_node(const struct list *l, const void *elem);
 
 /*
  * The same of locate_node, but return the content of the node
  */
-void *locate_elem(struct list *l,void *elem);
+void *locate_elem(const struct list *l, const void *elem);
 
 /*
  * Delete all the elements in the list

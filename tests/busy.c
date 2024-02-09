@@ -2,18 +2,61 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
-void *loop()
+#ifndef __GNUC__
+#define __attribute__(attr)
+#endif
+
+#define MAX_PRIORITY -20
+
+static void increase_priority(void)
 {
-	while(1);
+	/* find the best available nice value */
+	int priority;
+	setpriority(PRIO_PROCESS, 0, MAX_PRIORITY);
+	priority = getpriority(PRIO_PROCESS, 0);
+	while (priority > MAX_PRIORITY && setpriority(PRIO_PROCESS, 0, priority - 1) == 0)
+	{
+		priority--;
+	}
 }
 
-int main(int argc, char **argv) {
+/* Get the number of CPUs */
+static int get_ncpu(void)
+{
+	int ncpu;
+#if defined(_SC_NPROCESSORS_ONLN)
+	ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__APPLE__)
+	int mib[2] = {CTL_HW, HW_NCPU};
+	size_t len = sizeof(ncpu);
+	sysctl(mib, 2, &ncpu, &len, NULL, 0);
+#elif defined(_GNU_SOURCE)
+	ncpu = get_nprocs();
+#else
+	ncpu = -1;
+#endif
+	return ncpu;
+}
+
+static void *loop(void *param __attribute__((unused)))
+{
+	while (1)
+		;
+	return NULL;
+}
+
+int main(int argc, char *argv[])
+{
 
 	int i = 0;
-	int num_threads = 1;
-	if (argc == 2) num_threads = atoi(argv[1]);
-	for (i=0; i<num_threads-1; i++)
+	int num_threads = get_ncpu();
+	increase_priority();
+	if (argc == 2)
+		num_threads = atoi(argv[1]);
+	for (i = 0; i < num_threads - 1; i++)
 	{
 		pthread_t thread;
 		int ret;
@@ -23,7 +66,6 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 	}
-	loop();
+	loop(NULL);
 	return 0;
 }
-

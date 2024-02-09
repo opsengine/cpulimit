@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, macos-11, macos-12, macos-13]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Compile dynamic
+        if: ${{ startsWith( matrix.os, 'macos-' ) }}
+        run: |
+          make
+          sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+
+      - name: Compile static
+        if: ${{ startsWith( matrix.os, 'ubuntu-' ) }}
+        run: |
+          make LDFLAGS="-static"
+          sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+
+      - name: Upload
+        uses: actions/upload-artifact@main
+        with:
+          name: cpulimit-${{ matrix.os }}
+          path: src/cpulimit
+
+  build-FreeBSD:
+    name: build-FreeBSD
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        osver: ['13.2', '14.0']
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Build in FreeBSD
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: ${{ matrix.osver }}
+        usesh: true
+        prepare: |
+          pkg install -y lang/gcc gmake sudo
+        run: |
+          gmake
+          sudo ./tests/process_iterator_test
+          cp ./tests/process_iterator_test ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+          sudo ./tests/abcdefghijklmnopqrstuvwxyzabcdefghi
+
+    - name: Upload
+      uses: actions/upload-artifact@main
+      with:
+        name: cpulimit-FreeBSD-${{ matrix.osver }}
+        path: src/cpulimit

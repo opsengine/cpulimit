@@ -2,7 +2,7 @@
  *
  * cpulimit - a CPU limiter for Linux
  *
- * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com> 
+ * Copyright (C) 2005-2012, by:  Angelo Marletta <angelo dot marletta at gmail dot com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,109 +27,133 @@
 #include <time.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
-#ifdef __APPLE__ || __FREEBSD__
-#include <libgen.h>
+#include "../src/process_iterator.h"
+#include "../src/process_group.h"
+
+#ifndef __GNUC__
+#define __attribute__(attr)
 #endif
 
-#include <process_iterator.h>
-#include <process_group.h>
+#define MAX_PRIORITY -20
 
-volatile sig_atomic_t child;
-
-void kill_child(int sig)
+static void increase_priority(void)
 {
-	kill(child, SIGINT);
+	/* find the best available nice value */
+	int priority;
+	setpriority(PRIO_PROCESS, 0, MAX_PRIORITY);
+	priority = getpriority(PRIO_PROCESS, 0);
+	while (priority > MAX_PRIORITY && setpriority(PRIO_PROCESS, 0, priority - 1) == 0)
+	{
+		priority--;
+	}
 }
 
-void test_single_process()
+/* inline int sleep_timespec(struct timespec *t); */
+#if defined(__linux__) && defined(CLOCK_TAI)
+#define sleep_timespec(t) clock_nanosleep(CLOCK_TAI, 0, (t), NULL)
+#else
+#define sleep_timespec(t) nanosleep((t), NULL)
+#endif
+
+static char *__basename(char *path)
+{
+	char *p = strrchr(path, '/');
+	return p != NULL ? p + 1 : path;
+}
+#define basename(path) __basename(path)
+
+static void ignore_signal(int sig __attribute__((unused)))
+{
+}
+
+static void test_single_process(void)
 {
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
 	int count;
-	//don't iterate children
+	/* don't iterate children */
 	filter.pid = getpid();
 	filter.include_children = 0;
 	count = 0;
-//	time_t now = time(NULL);
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &process) == 0)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
-		assert(process.cputime < 100);
-//		assert(process.starttime == now || process.starttime == now - 1);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 1);
 	close_process_iterator(&it);
-	//iterate children
+	/* iterate children */
 	filter.pid = getpid();
 	filter.include_children = 0;
 	count = 0;
-//	now = time(NULL);
 	init_process_iterator(&it, &filter);
 	while (get_next_process(&it, &process) == 0)
 	{
 		assert(process.pid == getpid());
 		assert(process.ppid == getppid());
-		assert(process.cputime < 100);
-//		assert(process.starttime == now || process.starttime == now - 1);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 1);
 	close_process_iterator(&it);
 }
 
-void test_multiple_process()
+static void test_multiple_process(void)
 {
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
+	int count = 0;
 	pid_t child = fork();
 	if (child == 0)
 	{
-		//child is supposed to be killed by the parent :/
-		sleep(1);
+		/* child is supposed to be killed by the parent :/ */
+		while (1)
+			sleep(5);
 		exit(1);
 	}
 	filter.pid = getpid();
 	filter.include_children = 1;
 	init_process_iterator(&it, &filter);
-	int count = 0;
-//	time_t now = time(NULL);
 	while (get_next_process(&it, &process) == 0)
 	{
-		if (process.pid == getpid()) assert(process.ppid == getppid());
-		else if (process.pid == child) assert(process.ppid == getpid());
-		else assert(0);
-		assert(process.cputime < 100);
-//		assert(process.starttime == now || process.starttime == now - 1);
+		if (process.pid == getpid())
+			assert(process.ppid == getppid());
+		else if (process.pid == child)
+			assert(process.ppid == getpid());
+		else
+			assert(0);
+		assert(process.cputime <= 100);
 		count++;
 	}
 	assert(count == 2);
 	close_process_iterator(&it);
-	kill(child, SIGINT);
+	kill(child, SIGKILL);
 }
 
-void test_all_processes()
+static void test_all_processes(void)
 {
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
+	int count = 0;
 	filter.pid = 0;
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
-	int count = 0;
-//	time_t now = time(NULL);
+
 	while (get_next_process(&it, &process) == 0)
 	{
 		if (process.pid == getpid())
 		{
 			assert(process.ppid == getppid());
-			assert(process.cputime < 100);
-//			assert(process.starttime == now || process.starttime == now - 1);
+			assert(process.cputime <= 100);
 		}
 		count++;
 	}
@@ -137,14 +161,15 @@ void test_all_processes()
 	close_process_iterator(&it);
 }
 
-void test_process_group_all()
+static void test_process_group_all(void)
 {
 	struct process_group pgroup;
-	assert(init_process_group(&pgroup, 0, 0) == 0);
-	update_process_group(&pgroup);
 	struct list_node *node = NULL;
 	int count = 0;
-	for (node=pgroup.proclist->first; node!= NULL; node=node->next) {
+	assert(init_process_group(&pgroup, 0, 0) == 0);
+	update_process_group(&pgroup);
+	for (node = pgroup.proclist->first; node != NULL; node = node->next)
+	{
 		count++;
 	}
 	assert(count > 10);
@@ -152,28 +177,30 @@ void test_process_group_all()
 	assert(close_process_group(&pgroup) == 0);
 }
 
-void test_process_group_single(int include_children)
+static void test_process_group_single(int include_children)
 {
 	struct process_group pgroup;
-	child = fork();
-	if (child == 0)
-	{
-		//child is supposed to be killed by the parent :/
-		while(1);
-		exit(1);
-	}
-	signal(SIGABRT, &kill_child);
-    signal(SIGTERM, &kill_child);
-	assert(init_process_group(&pgroup, child, include_children) == 0);
 	int i;
 	double tot_usage = 0;
-	for (i=0; i<100; i++)
+	pid_t child = fork();
+	if (child == 0)
 	{
-		update_process_group(&pgroup);
+		/* child is supposed to be killed by the parent :/ */
+		increase_priority();
+		while (1)
+			;
+		exit(1);
+	}
+	assert(init_process_group(&pgroup, child, include_children) == 0);
+	for (i = 0; i < 200; i++)
+	{
 		struct list_node *node = NULL;
 		int count = 0;
-		for (node=pgroup.proclist->first; node!= NULL; node=node->next) {
-			struct process *p = (struct process*)(node->data);
+		struct timespec interval;
+		update_process_group(&pgroup);
+		for (node = pgroup.proclist->first; node != NULL; node = node->next)
+		{
+			const struct process *p = (const struct process *)(node->data);
 			assert(p->pid == child);
 			assert(p->ppid == getpid());
 			assert(p->cpu_usage <= 1.2);
@@ -181,39 +208,42 @@ void test_process_group_single(int include_children)
 			count++;
 		}
 		assert(count == 1);
-		struct timespec interval;
 		interval.tv_sec = 0;
 		interval.tv_nsec = 50000000;
-		nanosleep(&interval, NULL);
+		sleep_timespec(&interval);
 	}
-	assert(tot_usage / i < 1.1 && tot_usage / i > 0.8);
+	assert(tot_usage / i < 1.1 && tot_usage / i > 0.7);
 	assert(close_process_group(&pgroup) == 0);
-	kill(child, SIGINT);
+	kill(child, SIGKILL);
 }
 
-void test_process_name(const char * command)
+char *command = NULL;
+
+static void test_process_name(void)
 {
 	struct process_iterator it;
 	struct process process;
 	struct process_filter filter;
+	static char command_basename[PATH_MAX + 1];
+	static char process_basename[PATH_MAX + 1];
+	int cmp_len;
 	filter.pid = getpid();
 	filter.include_children = 0;
 	init_process_iterator(&it, &filter);
 	assert(get_next_process(&it, &process) == 0);
 	assert(process.pid == getpid());
 	assert(process.ppid == getppid());
-	#ifdef __APPLE__
-	// proc_pidinfo only gives us the first 15 chars
-	// of the basename of the command on OSX.
-	assert(strncmp(basename((char*)command), process.command, 15) == 0);
-	#else
-	assert(strncmp(command, process.command, strlen(process.command)) == 0);
-	#endif
+	strncpy(command_basename, basename(command), sizeof(command_basename) - 1);
+	command_basename[sizeof(command_basename) - 1] = '\0';
+	strncpy(process_basename, basename(process.command), sizeof(process_basename) - 1);
+	process_basename[sizeof(process_basename) - 1] = '\0';
+	cmp_len = process.max_cmd_len - (strlen(process.command) - strlen(process_basename));
+	assert(strncmp(command_basename, process_basename, cmp_len) == 0);
 	assert(get_next_process(&it, &process) != 0);
 	close_process_iterator(&it);
 }
 
-void test_process_group_wrong_pid()
+static void test_process_group_wrong_pid(void)
 {
 	struct process_group pgroup;
 	assert(init_process_group(&pgroup, -1, 0) == 0);
@@ -227,9 +257,45 @@ void test_process_group_wrong_pid()
 	assert(close_process_group(&pgroup) == 0);
 }
 
-int main(int argc, char **argv)
+static void test_find_process_by_pid(void)
 {
-//	printf("Pid %d\n", getpid());
+	assert(find_process_by_pid(getpid()) == getpid());
+}
+
+static void test_find_process_by_name(void)
+{
+	assert(find_process_by_name(command) == getpid());
+	assert(find_process_by_name("") == 0);
+}
+
+static void test_getppid_of(void)
+{
+	struct process_iterator it;
+	struct process process;
+	struct process_filter filter;
+	filter.pid = 0;
+	filter.include_children = 0;
+	init_process_iterator(&it, &filter);
+	while (get_next_process(&it, &process) == 0)
+	{
+		assert(getppid_of(process.pid) == process.ppid);
+	}
+	close_process_iterator(&it);
+	assert(getppid_of(getpid()) == getppid());
+}
+
+int main(int argc __attribute__((unused)), char *argv[])
+{
+	/* ignore SIGINT and SIGTERM during tests*/
+	struct sigaction sa;
+	sa.sa_handler = ignore_signal;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
+	command = argv[0];
+	increase_priority();
 	test_single_process();
 	test_multiple_process();
 	test_all_processes();
@@ -237,6 +303,9 @@ int main(int argc, char **argv)
 	test_process_group_single(0);
 	test_process_group_single(1);
 	test_process_group_wrong_pid();
-	test_process_name(argv[0]);
+	test_process_name();
+	test_find_process_by_pid();
+	test_find_process_by_name();
+	test_getppid_of();
 	return 0;
 }

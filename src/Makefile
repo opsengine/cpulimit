@@ -1,28 +1,26 @@
-CC?=gcc
-CFLAGS?=-Wall -g -D_GNU_SOURCE
-TARGETS=cpulimit
-LIBS=list.o process_iterator.o process_group.o
+CC ?= gcc
+override CFLAGS := $(filter-out -std=% -ansi -W%,$(CFLAGS)) \
+			-D_GNU_SOURCE -std=gnu89 \
+			-Wall -Wextra -pedantic \
+			-Wmissing-prototypes -Wstrict-prototypes \
+			-Wold-style-definition
+TARGET := cpulimit
 
-UNAME := $(shell uname)
-
+UNAME ?= $(shell uname)
 ifeq ($(UNAME), FreeBSD)
-LIBS+=-lkvm
+  override LDFLAGS += -lkvm
 endif
 
-all::	$(TARGETS) $(LIBS)
+ifeq ($(shell echo "int main(void){return 0;}" | $(CC) -x c - -lrt -o /dev/null 2>&1),)
+  override LDFLAGS += -lrt
+endif
 
-cpulimit:	cpulimit.c $(LIBS)
-	$(CC) -o cpulimit cpulimit.c $(LIBS) $(CFLAGS)
+.PHONY: all clean
 
-process_iterator.o: process_iterator.c process_iterator.h
-	$(CC) -c process_iterator.c $(CFLAGS)
+all: $(TARGET)
 
-list.o: list.c list.h
-	$(CC) -c list.c $(CFLAGS)
-
-process_group.o: process_group.c process_group.h process_iterator.o list.o
-	$(CC) -c process_group.c $(CFLAGS)
+$(TARGET): $(wildcard *.c *.h)
+	$(CC) $(CFLAGS) $(filter-out process_iterator_%.c %.h, $^) $(LDFLAGS) -o $@
 
 clean:
-	rm -f *~ *.o $(TARGETS)
-
+	rm -f *~ $(TARGET)
