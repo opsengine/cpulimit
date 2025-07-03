@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-void *loop()
+void *loop(void *)
 {
 	while(1);
 }
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 	}
-	loop();
+	loop(NULL);
 	return 0;
 }
 

@@ -38,12 +38,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#ifdef __APPLE__ || __FREEBSD__
+#if defined(__APPLE__) || defined(__FREEBSD__)
 #include <libgen.h>
 #endif
 
