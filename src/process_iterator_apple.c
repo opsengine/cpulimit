@@ -31,6 +31,7 @@ int unique_nonzero_ints(int* arr_in, int len_in, int* arr_out) {
 	if (arr_out == NULL) return -1;
 	if (arr_in == arr_out) {
 		source = malloc(sizeof(int)*len_in);
+		if (source == NULL) return -1;
 		memcpy(source, arr_in, sizeof(int)*len_in);
 		memset(arr_out, -1, sizeof(int)*len_in);
 	}
@@ -62,6 +63,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 	/* Allocate and populate it->pidlist */
 	if ((it->pidlist = (int *)malloc((it->count)*sizeof(int))) == NULL) {
 		fprintf(stderr, "malloc: %s\n", strerror(errno));
+		return -1;
 	}
 	if ((it->count = proc_listpids(PROC_ALL_PIDS, 0, it->pidlist, it->count)) <= 0) {
 		fprintf(stderr, "proc_listpids: %s\n", strerror(errno));
